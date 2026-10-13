@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Special Menu Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
+<style>
+/* Layout: a two-pane workbench. Left: the editor the staff type into. Right: the A6 card at true print size,
+   pinned, so what they see is exactly what the four copies on the A4 sheet will be. */
+:root{
+  --bg:#f3f1ec; --panel:#ffffff; --fg:#1d1f1b; --muted:#6d7268; --line:#d9d6cd;
+  --accent:#2a5a43; --accent-ink:#ffffff; --accent-soft:#e3ece6;
+  --ok:#2a7a4b; --warn:#b0620a; --bad:#b3261e; --bad-soft:#f8e4e2;
+  --paper:#ffffff; --paper-ink:#141412; --paper-rule:#141412;
+  --display:"Oswald","Arial Narrow",Impact,sans-serif;
+  --body:"Karla",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181a; --panel:#1f2226; --fg:#ebe9e3; --muted:#9aa096; --line:#353a3e;
+    --accent:#7fc29b; --accent-ink:#0f1a14; --accent-soft:#23332b;
+    --ok:#7fc29b; --warn:#e0a35a; --bad:#f0857c; --bad-soft:#3a2321;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181a; --panel:#1f2226; --fg:#ebe9e3; --muted:#9aa096; --line:#353a3e;
+  --accent:#7fc29b; --accent-ink:#0f1a14; --accent-soft:#23332b;
+  --ok:#7fc29b; --warn:#e0a35a; --bad:#f0857c; --bad-soft:#3a2321;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
+.app{min-height:100%;display:flex;flex-direction:column}
+
+/* Top bar */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-size:22px;letter-spacing:.02em;text-transform:uppercase}
+.brand small{color:var(--muted);font-size:13px}
+.topbar .spacer{flex:1}
+.datefield{display:flex;align-items:center;gap:8px}
+.datefield input{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-weight:500}
+.btn:hover{background:var(--accent-soft)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--accent-soft)}
+.menu{position:relative}
+.menu .pop{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);min-width:220px;padding:6px;z-index:10;display:none}
+.menu.open .pop{display:block}
+.pop button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;background:transparent;border-radius:5px}
+.pop button:hover{background:var(--accent-soft)}
+.pop hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.pop label{display:block;padding:6px 10px;font-size:13px;color:var(--muted)}
+.pop input[type=date]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--bg)}
+
+/* Workbench */
+.work{flex:1;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;padding:20px;max-width:1500px;width:100%;margin:0 auto}
+@media (max-width:980px){.work{grid-template-columns:minmax(0,1fr)}.preview-col{order:-1}}
+.editor{min-width:0;display:flex;flex-direction:column;gap:16px}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px;border-radius:8px;background:var(--panel);border:1px solid var(--line)}
+.status .pill{font-size:13px;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--fg)}
+.status.ok{border-color:var(--ok)}
+.status.bad{border-color:var(--bad);background:var(--bad-soft)}
+.status strong{font-family:var(--display);font-weight:500;letter-spacing:.03em;text-transform:uppercase;font-size:13px}
+.status ul{margin:0;padding-left:18px;font-size:13px;width:100%}
+
+.section{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.section header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.section header h2{font-size:17px;text-transform:uppercase;letter-spacing:.06em}
+.section header .count{color:var(--muted);font-size:13px}
+.section header .spacer{flex:1}
+.item{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) 92px auto auto;gap:10px;padding:12px 16px;align-items:start;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+@media (max-width:1500px){.item{grid-template-columns:minmax(0,1fr) 92px;}.item .f-desc{grid-column:1/-1}.item .f-tags{grid-column:1}.item .f-del{grid-column:2;justify-self:end}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field input{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);width:100%}
+.field input.err{border-color:var(--bad);background:var(--bad-soft)}
+.field .meta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.field .meta .over{color:var(--bad);font-weight:700}
+.f-price input{text-align:right;font-variant-numeric:tabular-nums}
+.tags{display:flex;gap:4px;flex-wrap:wrap;padding-top:1px}
+.tag{font-size:11.5px;padding:4px 7px;border-radius:4px;border:1px solid var(--line);background:transparent;font-weight:700;letter-spacing:.04em}
+.tag.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.del{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:6px 8px;border-radius:5px}
+.del:hover{color:var(--bad);background:var(--bad-soft)}
+.add-row{padding:8px 16px;display:flex;gap:8px;align-items:center;border-top:1px dashed var(--line)}
+.hint{font-size:12.5px;color:var(--muted)}
+
+/* Suggestion chips */
+.sugg{display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px 12px;border-top:1px dashed var(--line)}
+.sugg:empty{display:none}
+.chip{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);text-align:left;max-width:100%}
+.chip:hover{border-color:var(--accent);background:var(--accent-soft)}
+.chip b{font-weight:700;font-size:13.5px}
+.chip span{font-size:11.5px;color:var(--muted)}
+
+/* Preview column */
+.preview-col{display:flex;flex-direction:column;gap:12px;align-items:stretch;min-width:0}
+.preview-col .label{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--muted);align-self:flex-start}
+.preview-wrap{position:sticky;top:76px;display:flex;flex-direction:column;gap:10px}
+.sheet-frame{width:100%;aspect-ratio:var(--sheet-ratio,297/210);position:relative;overflow:hidden;background:var(--paper)}
+.sheet-frame .sheet{position:absolute;left:0;top:0;transform-origin:0 0}
+.card-shadow{box-shadow:0 10px 30px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.2)}
+.preview-col .hint{text-align:center}
+
+/* THE CARD: size comes from the sheet layout (A4 divided N ways). 1em = 1mm at A6 size; the whole card scales
+   by --u (sqrt of area ratio to A6) so the same design fits a whole page or an eighth of one. */
+.card{width:var(--cw);height:var(--ch);font-size:calc(var(--u,1) * 1mm);background:var(--paper);color:var(--paper-ink);padding:6em 8em 5.5em;display:flex;flex-direction:column;font-family:var(--body);position:relative;overflow:hidden}
+.card .c-head{display:flex;align-items:baseline;justify-content:space-between;gap:4em;border-bottom:.5em solid var(--paper-rule);padding-bottom:1.8em}
+.card .c-cafe{font-family:var(--display);font-weight:600;font-size:6.4em;line-height:1;letter-spacing:.06em;text-transform:uppercase}
+.card .c-tag{font-size:2.8em;font-style:italic;color:#3a3a36;white-space:nowrap}
+.card .c-date{font-family:var(--display);font-weight:500;font-size:3.2em;letter-spacing:.14em;text-transform:uppercase;text-align:center;margin:1.8em 0 1em}
+.card .c-body{flex:1;columns:var(--cols,2);column-gap:7em;column-rule:.2em solid #d6d6d0;min-height:0}
+.card.portrait{padding:8em 8em 7em}
+.card.portrait .c-head{flex-direction:column;align-items:center;gap:1.2em;text-align:center;padding-bottom:2.2em}
+.card.portrait .c-cafe{font-size:7.2em}
+.card.portrait .c-date{margin:2.6em 0 1.4em}
+.card.portrait .c-body{columns:1;display:flex;flex-direction:column;justify-content:space-evenly}
+.card.portrait .c-sec{padding:1.1em 0}
+.card.portrait .c-item{margin-top:1.2em}
+.card.portrait .c-name,.card.portrait .c-price{font-size:3.7em}
+.card.portrait .c-desc{font-size:3em}
+.card .c-sec{padding:1.8em 0;break-inside:avoid}
+.card .c-sec-name{font-family:var(--display);font-weight:500;font-size:3em;letter-spacing:.18em;text-transform:uppercase;color:#4b4b46;display:flex;align-items:center;gap:.7em}
+.card .c-sec-name::after{content:"";flex:1;border-top:.07em solid #9b9b94}
+.card .c-item{display:grid;grid-template-columns:1fr auto;column-gap:3em;margin-top:1.8em}
+.card .c-name{font-weight:700;font-size:3.9em;line-height:1.2}
+.card .c-name .t{font-weight:700;font-size:.7em;letter-spacing:.06em;vertical-align:.15em;margin-left:.35em;border:.06em solid #141412;padding:0 .2em;border-radius:.2em}
+.card .c-price{font-family:var(--display);font-weight:500;font-size:3.9em;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap}
+.card .c-desc{grid-column:1/-1;font-size:3.3em;line-height:1.3;font-style:italic;color:#3a3a36}
+.card .c-foot{text-align:center;font-size:2.6em;letter-spacing:.08em;text-transform:uppercase;color:#4b4b46;border-top:.08em solid #9b9b94;padding-top:.55em;margin-top:.4em}
+/* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 4em;--cols:1}
+.card.classic .c-head{display:block;border:0;padding:0}
+.card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
+.card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
+.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3.5em;padding-top:2.4em}
+.card.classic .c-sec{padding:0}
+.card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
+.card.classic .c-sec-name::after{display:none}
+.card.classic .c-item{margin-top:.9em;column-gap:4em}
+.card.classic .c-item:first-child{margin-top:0}
+.card.classic .c-sec-name + .c-item{margin-top:0}
+.card.classic .c-name{font-size:2.4em;line-height:1.25}
+.card.classic .c-price{font-family:inherit;font-weight:700;font-size:2.4em;line-height:1.25}
+.card.classic .c-desc{font-style:normal;font-size:2.2em;line-height:1.25;color:#141412;padding-left:4.2em}
+.card.classic .c-foot{font-size:2.4em;border:0;text-transform:none;letter-spacing:0}
+.card.overflow{outline:1mm solid var(--bad)}
+
+/* Side drawer (history / settings) */
+.drawer{position:fixed;inset:0;display:none;z-index:20}
+.drawer.open{display:block}
+.drawer .scrim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.drawer .panel{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.panel header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.panel header h2{font-size:18px;text-transform:uppercase;letter-spacing:.05em;flex:1}
+.panel .body{flex:1;overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.hist{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;width:100%;background:transparent;text-align:left}
+.hist:hover{background:var(--accent-soft)}
+.hist .d{font-family:var(--display);font-size:15px;min-width:92px}
+.hist .s{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist .ex{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--accent-soft);color:var(--muted)}
+.settings label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.settings input,.settings select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.settings .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;color:var(--muted)}
+.settings .check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* THE A4 SHEET: a grid of identical cards. Columns, rows and orientation are set from Settings (see layoutSheet). */
+.sheet{display:grid;position:relative;overflow:hidden;background:var(--paper)}
+.cut{position:absolute;background:#000}
+.sheet.guides .card{outline:.15mm dashed #bbb;outline-offset:-.075mm}
+.sheet /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 4em;--cols:1}
+.card.classic .c-head{display:block;border:0;padding:0}
+.card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
+.card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
+.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3.5em;padding-top:2.4em}
+.card.classic .c-sec{padding:0}
+.card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
+.card.classic .c-sec-name::after{display:none}
+.card.classic .c-item{margin-top:.9em;column-gap:4em}
+.card.classic .c-item:first-child{margin-top:0}
+.card.classic .c-sec-name + .c-item{margin-top:0}
+.card.classic .c-name{font-size:2.4em;line-height:1.25}
+.card.classic .c-price{font-family:inherit;font-weight:700;font-size:2.4em;line-height:1.25}
+.card.classic .c-desc{font-style:normal;font-size:2.2em;line-height:1.25;color:#141412;padding-left:4.2em}
+.card.classic .c-foot{font-size:2.4em;border:0;text-transform:none;letter-spacing:0}
+.card.overflow{outline:1mm solid var(--bad)}
+@media print{
+  html,body{background:#fff;height:auto}
+  .app .topbar,.app .editor,.preview-col .label,.preview-col .hint,.drawer,.toast{display:none!important}
+  .app,.work,.preview-col,.preview-wrap,.sheet-frame{display:block;padding:0;margin:0;gap:0;position:static;width:auto;height:auto;aspect-ratio:auto;overflow:visible;max-width:none;box-shadow:none}
+  .sheet{transform:none!important;position:relative}
+  .sheet .card.overflow{outline:none}
+}
+</style>
+<style id="pageStyle"></style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><h1 id="brandName">Special Menu</h1><small id="brandSub">4-up A4</small></div>
+    <div class="spacer"></div>
+    <div class="datefield"><label for="menuDate" class="hint">Menu for</label><input type="date" id="menuDate"></div>
+    <div class="menu" id="startMenu">
+      <button class="btn" id="startBtn" aria-haspopup="true">Start from ▾</button>
+      <div class="pop">
+        <button data-start="yesterday">Yesterday</button>
+        <button data-start="lastweek">Same day last week</button>
+        <button data-start="blank">Blank</button>
+        <hr>
+        <label for="startDate">A past date</label>
+        <input type="date" id="startDate">
+      </div>
+    </div>
+    <button class="btn" id="historyBtn">History</button>
+    <button class="btn" id="settingsBtn">Settings</button>
+    <button class="btn" id="saveBtn">Save</button>
+    <button class="btn" id="pdfBtn">Export PDF</button>
+    <button class="btn primary" id="printBtn">Print 4-up</button>
+  </div>
+
+  <div class="work">
+    <div class="editor">
+      <div class="status" id="status"></div>
+      <div id="sections"></div>
+    </div>
+    <div class="preview-col">
+      <div class="preview-wrap">
+        <div class="label" id="previewLabel">Print preview</div>
+        <div class="sheet-frame card-shadow"><div class="sheet" id="sheet"></div></div>
+        <p class="hint">This is the whole sheet as it will print. Set printer scaling to 100% / "Actual size" and cut along the marks.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer" id="historyDrawer">
+  <div class="scrim" data-close></div>
+  <div class="panel">
+    <header><h2>History</h2><button class="btn small ghost" data-close>Close</button></header>
+    <div class="body" id="historyList"></div>
+  </div>
+</div>
+
+<div class="drawer" id="settingsDrawer">
+  <div class="scrim" data-close></div>
+  <div class="panel">
+    <header><h2>Settings</h2><button class="btn small ghost" data-close>Close</button></header>
+    <div class="body settings" id="settingsBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- Format rules & settings (owner-editable, stored as data) ---------- */
+const DEFAULT_RULES = {
+  sections: [
+    {id:'food', name:'Food', max:7},
+    {id:'drinks', name:'Drinks', max:4}
+  ],
+  minPerSection: 1, totalMax: 11, nameMax: 60, descMax: 70,
+  tags: ['a','l','m'], currency: '$', titleCase: false,
+  replacements: [['w/','with']]
+};
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4 };
+
+// Data version: wipes anything stored by the earlier prototype (different sections and example data).
+if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
+let rules = Object.assign({}, DEFAULT_RULES, LS.get('specials.rules', {}));
+let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get('specials.settings', {}));
+let history = LS.get('specials.history', null);
+
+/* ---------- Dates ---------- */
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromIso = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (s, n) => { const d = fromIso(s); d.setDate(d.getDate()+n); return iso(d); };
+const today = iso(new Date());
+const longDate = s => fromIso(s).toLocaleDateString('en-AU', {weekday:'long', day:'numeric', month:'long'});
+const shortDate = s => fromIso(s).toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'});
+const daysBetween = (a,b) => Math.round((fromIso(b)-fromIso(a))/86400000);
+
+/* ---------- History seeded from the cafe's October 2026 Pages file ---------- */
+const SEED_HISTORY = {"2026-10-01":{"date":"2026-10-01","items":{"food":[{"name":"Blue fin tuna, quail egg benedict","desc":"eshallot, herbs, hollandaise","price":"12","tags":["a"]},{"name":"NZ alfonsino, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["i"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]},{"name":"400gr Coppertree scotch fillet","desc":"dijon mustard, red wine jus, lemon","price":"90","tags":[]}],"drinks":[{"name":"Lycheeberry soda","desc":"lychee, strawberry, mint, soda","price":"10","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical atermelon, honey","price":"14","tags":[]},{"name":"Cold Brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]},{"name":"House made “Mijiu”","desc":"aka makgeolli, lychee, jasmine","price":"15","tags":[]}]},"printedAt":null},"2026-10-02":{"date":"2026-10-02","items":{"food":[{"name":"Fried chicken burger","desc":"cucumber, iceberg lettuce, dijon mayonnaise, aioli","price":"23","tags":[]},{"name":"NZ alfonsino, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["i"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]},{"name":"400gr Coppertree scotch fillet","desc":"dijon mustard, red wine jus, lemon","price":"90","tags":[]}],"drinks":[{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical watermelon, honey","price":"14","tags":[]},{"name":"Cold Brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-03":{"date":"2026-10-03","items":{"food":[{"name":"Blue fin tuna, quail egg benedict","desc":"eshallot, herbs, hollandaise","price":"12","tags":["a"]},{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"34","tags":["a"]},{"name":"Chicken ballotine, mushroom & zucchini","desc":"fish mousse, prawns, chicken jus","price":"42","tags":[]},{"name":"QLD Purple rock cod, green mussel, turmeric crab bisque","desc":"cannellini bean, curry leaf, lime","price":"49","tags":["m"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]},{"name":"400gr Coppertree scotch fillet","desc":"dijon mustard, red wine jus, lemon","price":"90","tags":[]}],"drinks":[{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical atermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-05":{"date":"2026-10-05","items":{"food":[{"name":"Blue fin tuna, quail egg benedict","desc":"eshallot, herbs, hollandaise","price":"12","tags":["a"]},{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"34","tags":["a"]},{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Charcoal grill duck breast, beetroot & raspberry","desc":"radicchio, turnips, elk, jus","price":"48","tags":[]},{"name":"QLD Purple rock cod, green mussel, turmeric crab bisque","desc":"cannellini bean, curry leaf, lime","price":"49","tags":["m"]},{"name":"400gr Coppertree scotch fillet","desc":"dijon mustard, red wine jus, lemon","price":"90","tags":[]},{"name":"500gr Coppertree ribeye","desc":"dijon mustard, red wine jus, lemon","price":"132","tags":[]}],"drinks":[{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical atermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]},{"name":"House made “Mijiu”","desc":"aka makgeolli, lychee, jasmine","price":"15","tags":[]}]},"printedAt":null},"2026-10-06":{"date":"2026-10-06","items":{"food":[{"name":"Blue fin tuna, quail egg benedict","desc":"eshallot, herbs, hollandaise","price":"12","tags":["a"]},{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"35","tags":["a"]},{"name":"Chicken ballotine, mushroom & zucchini","desc":"fish mousse, prawns, chicken jus","price":"42","tags":[]},{"name":"500gr Coppertree ribeye","desc":"dijon mustard, red wine jus, lemon","price":"132","tags":[]}],"drinks":[{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical atermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-07":{"date":"2026-10-07","items":{"food":[{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Pan fried Snapper, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["a"]},{"name":"Charcoal grill duck breast, beetroot & raspberry","desc":"radicchio, turnips, elk, jus","price":"48","tags":[]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical fruit, watermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-08":{"date":"2026-10-08","items":{"food":[{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"34","tags":["a"]},{"name":"Pan fried Snapper, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["a"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical fruit, watermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-09":{"date":"2026-10-09","items":{"food":[{"name":"Fried chicken burger","desc":"cucumber, iceberg lettuce, dijon mayonnaise, aioli","price":"23","tags":[]},{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"34","tags":["a"]},{"name":"Pan fried snapper, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["a"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical fruit, watermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-10":{"date":"2026-10-10","items":{"food":[{"name":"Red royal prawn & green pea tart","desc":"pancetta, prawn oil, green pea purée","price":"11","tags":["m"]},{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Chicken ballotine, mushroom & zucchini","desc":"fish mousse, prawns, chicken jus","price":"42","tags":[]},{"name":"QLD Purple rock cod, green mussel, turmeric crab bisque","desc":"cannellini bean, curry leaf, lime","price":"52","tags":["m"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]},{"name":"400g Coppertree grass fed sirloin","desc":"mustard, red wine jus, lemon (med rare/med)","price":"82","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"watermelon, lime, chocolate honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-11":{"date":"2026-10-11","items":{"food":[{"name":"Red royal prawn & green pea tart","desc":"pancetta, prawn oil, green pea purée","price":"11","tags":["m"]},{"name":"Chargrilled pork & scramble egg","desc":"brussel sprouts, maple","price":"34","tags":[]},{"name":"Charcoal grill duck breast, beetroot & raspberry","desc":"radicchio, turnips, elk, jus","price":"48","tags":[]},{"name":"QLD Purple rock cod, green mussel, turmeric crab bisque","desc":"cannellini bean, curry leaf, lime","price":"52","tags":["m"]},{"name":"200g blackmore blade steak","desc":"dijon mustard, red wine jus, lemon","price":"61","tags":[]},{"name":"400g Coppertree grass fed sirloin","desc":"mustard, red wine jus, lemon (med rare/med)","price":"82","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"watermelon, lime, chocolate honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-13":{"date":"2026-10-13","items":{"food":[{"name":"Red royal prawn & green pea tart","desc":"pancetta, prawn oil, green pea purée","price":"11","tags":["m"]},{"name":"Chicken ballotine, mushroom & zucchini","desc":"fish mousse, prawns, chicken jus","price":"42","tags":[]},{"name":"Charcoal grill duck breast, beetroot & raspberry","desc":"radicchio, turnips, elk, jus","price":"48","tags":[]},{"name":"QLD Purple rock cod, green mussel, turmeric crab bisque","desc":"cannellini bean, curry leaf, lime","price":"49","tags":["m"]},{"name":"400g Coppertree grass fed sirloin","desc":"mustard, red wine jus, lemon (med rare/med)","price":"82","tags":[]}],"drinks":[{"name":"Plum iced tea","desc":"laoshan green tea, apple, basil","price":"10","tags":[]},{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"watermelon, lime, chocolate honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null},"2026-10-14":{"date":"2026-10-14","items":{"food":[{"name":"Cuttlefish & gnochetti pasta","desc":"crouton, capers, olive vinaigrette","price":"34","tags":["a"]},{"name":"Pan fried snapper, prawns & curry vinaigrette","desc":"green pea, sugar snaps, herbs","price":"46","tags":["a"]},{"name":"Charcoal grill duck breast & raspberry","desc":"radicchio, turnips, elk, jus","price":"48","tags":[]},{"name":"400g Coppertree grass fed sirloin","desc":"mustard, red wine jus, lemon (med rare/med)","price":"82","tags":[]}],"drinks":[{"name":"Coconut chocolate","desc":"callebaut dark chocolate, coconut milk","price":"10","tags":[]},{"name":"Espresso apple spritz","desc":"espresso, apple sparkling, apple pear foam","price":"11","tags":[]},{"name":"Cold brew - Colombia watermelon","desc":"tropical fruit, watermelon, honey","price":"14","tags":[]},{"name":"Cold brew - Colombia geisha","desc":"lime, orange, dark choc","price":"15","tags":[]}]},"printedAt":null}};
+if (!history){ history = SEED_HISTORY; LS.set('specials.history', history); }
+
+/* ---------- Draft (today's menu) ---------- */
+function blankMenu(date){
+  const items = {};
+  for (const s of rules.sections) items[s.id] = [ {name:'', desc:'', price:'', tags:[]} ];
+  return {date, items};
+}
+function cloneMenu(src, date){
+  const m = {date, items:{}};
+  for (const s of rules.sections) m.items[s.id] = (src.items[s.id] || []).map(i => ({name:i.name, desc:i.desc, price:i.price, tags:[...(i.tags||[])]}));
+  if (!Object.values(m.items).some(a=>a.length)) return blankMenu(date);
+  for (const s of rules.sections) if (!m.items[s.id].length) m.items[s.id].push({name:'',desc:'',price:'',tags:[]});
+  return m;
+}
+let draft = LS.get('specials.draft', null);
+if (!draft || draft.date !== today){
+  const src = history[today] || history[addDays(today,-1)] || history[addDays(today,-2)];
+  draft = src ? cloneMenu(src, today) : blankMenu(today);
+}
+const saveDraft = () => LS.set('specials.draft', draft);
+
+/* ---------- Text rules ---------- */
+const SMALL = new Set(['and','or','of','the','with','on','in','a','an','&','de','du','al','di']);
+function titleCase(s){
+  return s.split(/\s+/).map((w,i)=>{
+    if (!w) return w;
+    const lw = w.toLowerCase();
+    if (i>0 && SMALL.has(lw)) return lw;
+    if (/^[A-Z0-9&]+$/.test(w) && w.length<=3) return w; // keep BBQ, GF
+    return w[0].toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+function tidy(s){
+  let t = s.replace(/\s+/g,' ').trim();
+  for (const [a,b] of rules.replacements) t = t.split(a).join(b);
+  return t.replace(/\s+/g,' ').replace(/\s,/g,',').trim();
+}
+function parsePrice(s){
+  const t = String(s).replace(/[^0-9.]/g,'');
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  return Number(t);
+}
+function fmtPrice(n){ return rules.currency + (Number.isInteger(n) ? n : n.toFixed(2)); }
+
+/* ---------- Validation ---------- */
+function validate(m){
+  const errs = []; let total = 0;
+  for (const s of rules.sections){
+    const list = m.items[s.id] || [];
+    const filled = list.filter(i => i.name.trim());
+    total += filled.length;
+    if (filled.length < rules.minPerSection) errs.push(`${s.name}: needs at least ${rules.minPerSection} item`);
+    if (filled.length > s.max) errs.push(`${s.name}: no more than ${s.max} item${s.max>1?'s':''}`);
+    list.forEach((i, k) => {
+      const where = `${s.name} ${k+1}`;
+      if (!i.name.trim()) { if (i.desc.trim() || i.price.trim()) errs.push(`${where}: give it a name or remove it`); return; }
+      if (i.name.length > rules.nameMax) errs.push(`${where}: name is ${i.name.length}/${rules.nameMax} characters`);
+      if (i.desc.length > rules.descMax) errs.push(`${where}: description is ${i.desc.length}/${rules.descMax} characters`);
+      if (/\r|\n/.test(i.desc)) errs.push(`${where}: description must be one line`);
+      if (parsePrice(i.price) === null) errs.push(`${where}: price must look like 12 or 12.50`);
+      const names = filled.map(x=>x.name.trim().toLowerCase());
+      if (names.indexOf(i.name.trim().toLowerCase()) !== k && names.filter(n=>n===i.name.trim().toLowerCase()).length>1) errs.push(`${where}: duplicate of another item`);
+    });
+  }
+  if (total > rules.totalMax) errs.push(`Card holds ${rules.totalMax} items; you have ${total}`);
+  return {errs, total};
+}
+
+/* ---------- Suggestions from history ---------- */
+function historyIndex(sectionId){
+  const idx = new Map();
+  const dates = Object.keys(history).sort();
+  for (const d of dates){
+    const list = (history[d].items||{})[sectionId] || [];
+    for (const it of list){
+      if (!it.name) continue;
+      const key = it.name.trim().toLowerCase();
+      const e = idx.get(key) || {item:it, count:0, last:null, weekdays:{}, months:{}};
+      e.item = it; e.count++; e.last = d;
+      const dow = fromIso(d).getDay(); e.weekdays[dow] = (e.weekdays[dow]||0)+1;
+      const mo = fromIso(d).getMonth(); e.months[mo] = (e.months[mo]||0)+1;
+      idx.set(key, e);
+    }
+  }
+  return idx;
+}
+function suggest(sectionId, n){
+  const idx = historyIndex(sectionId);
+  const current = new Set((draft.items[sectionId]||[]).map(i=>i.name.trim().toLowerCase()).filter(Boolean));
+  const yesterday = new Set(((history[addDays(draft.date,-1)]||{}).items?.[sectionId]||[]).map(i=>i.name.trim().toLowerCase()));
+  const dow = fromIso(draft.date).getDay(), mo = fromIso(draft.date).getMonth();
+  const scored = [];
+  for (const [key,e] of idx){
+    if (current.has(key) || yesterday.has(key)) continue;
+    const since = daysBetween(e.last, draft.date);
+    let score = Math.min(since, 60);                 // rested items rise
+    score += (e.weekdays[dow]||0) * 6;               // popular on this weekday
+    score += (e.months[mo]||0) * 3;                  // seasonal fit
+    score += Math.min(e.count, 10);                  // proven sellers
+    let why = since === 1 ? 'ran yesterday' : `last ran ${since} days ago`;
+    if ((e.weekdays[dow]||0) >= 2) why += ` · a ${fromIso(draft.date).toLocaleDateString('en-AU',{weekday:'long'})} regular`;
+    why += ` · ${e.count}×`;
+    scored.push({e, score, why});
+  }
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.slice(0,n);
+}
+function lookupPast(sectionId, name){
+  const e = historyIndex(sectionId).get(name.trim().toLowerCase());
+  return e ? e.item : null;
+}
+
+/* ---------- Rendering: editor ---------- */
+const $ = s => document.querySelector(s);
+const el = (tag, attrs={}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)){
+    if (k==='class') n.className = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (k==='html') n.innerHTML = v; else if (v!==null && v!==undefined) n.setAttribute(k, v);
+  }
+  for (const k of kids) if (k!==null && k!==undefined) n.append(k);
+  return n;
+};
+
+function renderEditor(){
+  const root = $('#sections'); root.innerHTML = '';
+  for (const s of rules.sections){
+    const list = draft.items[s.id] || (draft.items[s.id] = []);
+    const sec = el('div', {class:'section'});
+    const dl = el('datalist', {id:`dl-${s.id}`});
+    for (const [,e] of historyIndex(s.id)) dl.append(el('option', {value:e.item.name}));
+    sec.append(dl);
+    const header = el('header', {}, el('h2', {}, s.name), el('span', {class:'count'}, `${list.filter(i=>i.name.trim()).length} of ${s.max}`), el('span',{class:'spacer'}),
+      el('button', {class:'btn small', onclick:()=>{ sec.querySelector('.sugg').replaceChildren(...suggestionChips(s)); }}, 'Suggest'));
+    sec.append(header);
+    list.forEach((it, k) => sec.append(itemRow(s, it, k)));
+    if (list.length < s.max) sec.append(el('div',{class:'add-row'}, el('button',{class:'btn small', onclick:()=>{ list.push({name:'',desc:'',price:'',tags:[]}); update(); }}, '+ Add item'), el('span',{class:'hint'},`Up to ${s.max} in this section`)));
+    sec.append(el('div',{class:'sugg'}));
+    root.append(sec);
+  }
+}
+function suggestionChips(s){
+  return suggest(s.id, 4).map(({e, why}) => el('button', {class:'chip', title:'Use this item', onclick:()=>{
+    const list = draft.items[s.id];
+    const empty = list.findIndex(i=>!i.name.trim());
+    const target = empty >= 0 ? list[empty] : (list.length < s.max ? (list.push({name:'',desc:'',price:'',tags:[]}), list[list.length-1]) : list[list.length-1]);
+    Object.assign(target, {name:e.item.name, desc:e.item.desc, price:e.item.price, tags:[...(e.item.tags||[])]});
+    update(); toast(`Added ${e.item.name}`);
+  }}, el('b',{}, e.item.name), el('span',{}, why)));
+}
+function counter(field, max){
+  const over = field.length > max;
+  return el('div',{class:'meta'}, el('span',{}, ''), el('span',{class:over?'over':''}, `${field.length}/${max}`));
+}
+function itemRow(s, it, k){
+  const nameIn = el('input',{type:'text', id:`n-${s.id}-${k}`, list:`dl-${s.id}`, placeholder:'Item name', value:it.name, maxlength:rules.nameMax+20, autocomplete:'off',
+    oninput:e=>{ it.name = e.target.value; const past = lookupPast(s.id, it.name); if (past && !it.desc && !it.price){ it.desc = past.desc; it.price = past.price; it.tags=[...(past.tags||[])]; update(true); return; } liveUpdate(); },
+    onblur:()=>{ const t = tidy(it.name); it.name = rules.titleCase ? titleCase(t) : (t ? t[0].toUpperCase()+t.slice(1) : t); update(); }});
+  const descIn = el('input',{type:'text', id:`d-${s.id}-${k}`, placeholder:'One-line description', value:it.desc, maxlength:rules.descMax+30,
+    oninput:e=>{ it.desc = e.target.value; liveUpdate(); }, onblur:()=>{ it.desc = tidy(it.desc); update(); }});
+  const priceIn = el('input',{type:'text', id:`p-${s.id}-${k}`, inputmode:'decimal', placeholder:'12.50', value:it.price,
+    oninput:e=>{ it.price = e.target.value; liveUpdate(); }, onblur:()=>{ const p = parsePrice(it.price); if (p!==null) it.price = Number.isInteger(p)? String(p) : p.toFixed(2); update(); }});
+  if (it.name.length > rules.nameMax) nameIn.classList.add('err');
+  if (it.desc.length > rules.descMax) descIn.classList.add('err');
+  if (it.price && parsePrice(it.price)===null) priceIn.classList.add('err');
+  const tags = el('div',{class:'tags'}, ...rules.tags.map(t => el('button',{class:'tag'+(it.tags.includes(t)?' on':''), type:'button', 'aria-pressed':it.tags.includes(t), title:tagName(t),
+    onclick:()=>{ it.tags = it.tags.includes(t) ? it.tags.filter(x=>x!==t) : [...it.tags, t]; update(); }}, t)));
+  return el('div',{class:'item'},
+    el('div',{class:'field f-name'}, nameIn, counter(it.name, rules.nameMax)),
+    el('div',{class:'field f-desc'}, descIn, counter(it.desc, rules.descMax)),
+    el('div',{class:'field f-price'}, priceIn, el('div',{class:'meta'}, el('span',{}, rules.currency))),
+    el('div',{class:'f-tags'}, tags),
+    el('div',{class:'f-del'}, el('button',{class:'del', title:'Remove item', 'aria-label':'Remove item', onclick:()=>{ draft.items[s.id].splice(k,1); if(!draft.items[s.id].length) draft.items[s.id].push({name:'',desc:'',price:'',tags:[]}); update(); }}, '×'))
+  );
+}
+function tagName(t){ return {V:'Vegetarian', VG:'Vegan', GF:'Gluten free', DF:'Dairy free'}[t] || `Code (${t}) shown after the name`; }
+
+/* ---------- Rendering: card ---------- */
+const dm = s => { const d = fromIso(s); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`; };
+function renderCard(target, m){
+  target.innerHTML = '';
+  const classic = settings.style === 'classic';
+  target.classList.toggle('classic', classic);
+  const dateText = settings.dateFormat === 'dm' ? dm(m.date) : longDate(m.date);
+  const head = el('div',{class:'c-head'});
+  if (classic){
+    head.append(el('div',{class:'c-cafe'}, `${dateText}, ${settings.title || 'SPECIAL MENU'}`));
+    if (settings.tagline) head.append(el('div',{class:'c-tag'}, settings.tagline));
+    target.append(head);
+  } else {
+    head.append(el('div',{class:'c-cafe'}, settings.cafe || settings.title || 'Specials'));
+    if (settings.tagline) head.append(el('div',{class:'c-tag'}, settings.tagline));
+    target.append(head, el('div',{class:'c-date'}, dateText));
+  }
+  const body = el('div',{class:'c-body'});
+  for (const s of rules.sections){
+    const items = (m.items[s.id]||[]).filter(i=>i.name.trim());
+    if (!items.length) continue;
+    const sec = el('div',{class:'c-sec'});
+    if (settings.sectionHeadings || !classic) sec.append(el('div',{class:'c-sec-name'}, s.name));
+    for (const it of items){
+      const p = parsePrice(it.price);
+      const name = el('div',{class:'c-name'}, it.name.trim());
+      if (classic){ if (it.tags.length) name.append(` (${it.tags.join(', ')})`); }
+      else for (const t of it.tags) name.append(el('span',{class:'t'}, t));
+      const row = el('div',{class:'c-item'}, name, el('div',{class:'c-price'}, p===null ? '—' : fmtPrice(p)));
+      if (it.desc.trim()) row.append(el('div',{class:'c-desc'}, it.desc.trim()));
+      sec.append(row);
+    }
+    body.append(sec);
+  }
+  target.append(body);
+  if (settings.footer) target.append(el('div',{class:'c-foot'}, settings.footer));
+  const over = target.scrollHeight > target.clientHeight + 1 || body.scrollHeight > body.clientHeight + 1;
+  target.classList.toggle('overflow', over);
+  return over;
+}
+
+/* ---------- Status & orchestration ---------- */
+function renderStatus(errs, total, over){
+  const st = $('#status'); st.innerHTML = '';
+  const all = [...errs]; if (over) all.push('Card is overflowing the A6 area; shorten a description or remove an item');
+  st.className = 'status ' + (all.length ? 'bad' : 'ok');
+  st.append(el('strong',{}, all.length ? `${all.length} thing${all.length>1?'s':''} to fix before printing` : 'Ready to print'));
+  st.append(el('span',{class:'pill'}, `${total} / ${rules.totalMax} items`));
+  st.append(el('span',{class:'pill'}, `${shortDate(draft.date)}`));
+  if (history[draft.date]) st.append(el('span',{class:'pill'}, history[draft.date].printedAt ? 'Printed today' : 'Saved'));
+  if (all.length) st.append(el('ul',{}, ...all.map(e=>el('li',{},e))));
+  $('#printBtn').disabled = all.length > 0; $('#pdfBtn').disabled = all.length > 0;
+}
+let liveTimer = null;
+function liveUpdate(){ clearTimeout(liveTimer); liveTimer = setTimeout(()=>{ saveDraft(); const over = buildSheet(); const {errs,total} = validate(draft); renderStatus(errs,total,over); syncCounters(); }, 60); }
+function syncCounters(){
+  document.querySelectorAll('.item').forEach(row=>{
+    row.querySelectorAll('.field').forEach(f=>{
+      const inp = f.querySelector('input'); const m = f.querySelector('.meta span:last-child'); if(!inp||!m||!m.textContent.includes('/')) return;
+      const max = Number(m.textContent.split('/')[1]); m.textContent = `${inp.value.length}/${max}`; m.classList.toggle('over', inp.value.length>max); inp.classList.toggle('err', inp.value.length>max);
+    });
+  });
+}
+function update(keepFocus){
+  saveDraft();
+  const active = document.activeElement, id = active && active.id, pos = active && active.selectionStart;
+  renderEditor();
+  const over = buildSheet();
+  const {errs,total} = validate(draft);
+  renderStatus(errs,total,over);
+  $('#menuDate').value = draft.date;
+  $('#brandName').textContent = settings.cafe || settings.title || 'Daily Specials';
+  if (keepFocus && id){ const n = document.getElementById(id); if (n){ n.focus(); try{ n.setSelectionRange(pos,pos);}catch(e){} } }
+}
+
+/* ---------- Save / print ---------- */
+function saveToHistory(printed){
+  const snap = cloneMenu(draft, draft.date);
+  for (const s of rules.sections) snap.items[s.id] = snap.items[s.id].filter(i=>i.name.trim());
+  snap.printedAt = printed ? new Date().toISOString() : (history[draft.date]?.printedAt || null);
+  history[draft.date] = snap; LS.set('specials.history', history);
+}
+/* Sheet geometry: A4 divided into N equal cards. The split always keeps cards closest to the A-series shape. */
+const A4 = {short:210, long:297};
+const SPLITS = {1:[1,1], 2:[1,2], 3:[1,3], 4:[2,2], 6:[2,3], 8:[2,4], 9:[3,3], 12:[3,4], 16:[4,4]};
+function layout(){
+  const land = settings.pageOrientation === 'landscape';
+  const pw = land ? A4.long : A4.short, ph = land ? A4.short : A4.long;
+  const [a,b] = SPLITS[settings.divisions] || SPLITS[4];
+  const cols = land ? b : a, rows = land ? a : b;       // more cells along the longer edge
+  const cw = pw/cols, ch = ph/rows;
+  const u = Math.sqrt((cw*ch)/(148.5*105));              // 1 at A6
+  return {land, pw, ph, cols, rows, cw, ch, u, n:cols*rows};
+}
+function buildSheet(){
+  const L = layout();
+  const sheet = $('#sheet'); sheet.innerHTML = ''; sheet.classList.toggle('guides', !!settings.guides);
+  sheet.style.width = L.pw+'mm'; sheet.style.height = L.ph+'mm';
+  sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
+  sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
+  document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
+  $('#pageStyle').textContent = `@media print{ @page{ size:A4 ${L.land?'landscape':'portrait'}; margin:0 } }`;
+  let over = false;
+  for (let i=0;i<L.n;i++){ const c = el('div',{class:'card'+(L.cw < L.ch ? ' portrait' : '')}); sheet.append(c); over = renderCard(c, draft) || over; }
+  if (settings.cutMarks){
+    const mark = (x,y,w,h) => sheet.append(el('div',{class:'cut', style:`left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm`}));
+    for (let c=1;c<L.cols;c++){ const x=c*L.cw; mark(x,0,.15,5); mark(x,L.ph-5,.15,5); for(let r=1;r<L.rows;r++) mark(x,r*L.ch-4,.15,8); }
+    for (let r=1;r<L.rows;r++){ const y=r*L.ch; mark(0,y,5,.15); mark(L.pw-5,y,5,.15); for(let c=1;c<L.cols;c++) mark(c*L.cw-4,y,8,.15); }
+  }
+  const pl = $('#previewLabel'); if (pl) pl.textContent = `Print preview · A4 ${L.land?'landscape':'portrait'}, ${L.n===1?'one card':L.n+' cards'} (${Math.round(L.cw)} × ${Math.round(L.ch)} mm)`;
+  const bs = $('#brandSub'); if (bs) bs.textContent = `${L.n}-up A4 ${L.land?'landscape':'portrait'}`;
+  fitSheet();
+  return over;
+}
+function fitSheet(){
+  const frame = document.querySelector('.sheet-frame'), sheet = $('#sheet'); if (!frame) return;
+  const k = frame.clientWidth / sheet.offsetWidth; sheet.style.transform = `scale(${k})`;
+}
+new ResizeObserver(fitSheet).observe(document.querySelector('.sheet-frame'));
+$('#printBtn').addEventListener('click', ()=>{
+  const {errs} = validate(draft); if (errs.length) return;
+  saveToHistory(true); update(); window.print();
+});
+window.addEventListener('beforeprint', buildSheet);
+$('#pdfBtn').addEventListener('click', async ()=>{
+  const {errs} = validate(draft); if (errs.length) return;
+  if (!window.html2canvas || !window.jspdf){ toast('PDF library not loaded (offline?). Use Print and choose "Save as PDF".'); return; }
+  const btn = $('#pdfBtn'); btn.disabled = true; btn.textContent = 'Exporting…';
+  try{
+    const L = layout();
+    const clone = $('#sheet').cloneNode(true);
+    clone.id = ''; clone.style.transform = 'none'; clone.style.position = 'fixed'; clone.style.left = '0'; clone.style.top = '0'; clone.style.zIndex = '-1'; clone.style.visibility = 'visible';
+    clone.querySelectorAll('.card.overflow').forEach(c=>c.classList.remove('overflow'));
+    const holder = el('div',{style:'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden'}, clone);
+    document.body.append(holder);
+    await (document.fonts ? document.fonts.ready : Promise.resolve());
+    const canvas = await html2canvas(clone, {scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false, width:clone.offsetWidth, height:clone.offsetHeight});
+    holder.remove();
+    const pdf = new jspdf.jsPDF({orientation: L.land ? 'landscape' : 'portrait', unit:'mm', format:'a4', compress:true});
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, L.pw, L.ph);
+    pdf.save(`specials-${draft.date}.pdf`);
+    saveToHistory(false); update(); toast('PDF exported');
+  }catch(e){ console.error(e); toast('Could not export the PDF. Use Print and choose "Save as PDF".'); }
+  btn.disabled = false; btn.textContent = 'Export PDF';
+});
+$('#saveBtn').addEventListener('click', ()=>{ saveToHistory(false); update(); toast('Saved to history'); });
+
+/* ---------- Start-from & date ---------- */
+$('#menuDate').addEventListener('change', e=>{ if (!e.target.value) return; draft.date = e.target.value; update(); });
+const startMenu = $('#startMenu');
+$('#startBtn').addEventListener('click', e=>{ e.stopPropagation(); startMenu.classList.toggle('open'); });
+document.addEventListener('click', e=>{ if (!startMenu.contains(e.target)) startMenu.classList.remove('open'); });
+startMenu.querySelectorAll('[data-start]').forEach(b=>b.addEventListener('click', ()=>{
+  const how = b.dataset.start;
+  if (how==='blank'){ draft = blankMenu(draft.date); }
+  else {
+    const src = how==='yesterday' ? nearestBefore(addDays(draft.date,-1)) : history[addDays(draft.date,-7)];
+    if (!src){ toast('Nothing in history for that day'); startMenu.classList.remove('open'); return; }
+    draft = cloneMenu(src, draft.date);
+  }
+  startMenu.classList.remove('open'); update(); toast('Loaded');
+}));
+$('#startDate').addEventListener('change', e=>{ const src = history[e.target.value]; if (!src){ toast('No menu saved for that date'); return; } draft = cloneMenu(src, draft.date); startMenu.classList.remove('open'); update(); toast(`Loaded ${shortDate(e.target.value)}`); });
+function nearestBefore(d){ for (let i=0;i<7;i++){ const k = addDays(d,-i); if (history[k]) return history[k]; } return null; }
+
+/* ---------- Drawers ---------- */
+function openDrawer(id){ $(id).classList.add('open'); }
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', e=>e.target.closest('.drawer').classList.remove('open')));
+document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ document.querySelectorAll('.drawer.open').forEach(d=>d.classList.remove('open')); startMenu.classList.remove('open'); } });
+
+$('#historyBtn').addEventListener('click', ()=>{
+  const list = $('#historyList'); list.innerHTML = '';
+  const dates = Object.keys(history).sort().reverse();
+  if (!dates.length) list.append(el('p',{class:'hint'},'No menus saved yet. Save or print one and it will appear here.'));
+  list.append(el('p',{class:'hint'}, 'Click a day to use it as the starting point for the current menu.'));
+  for (const d of dates){
+    const m = history[d];
+    const names = rules.sections.flatMap(s=>(m.items[s.id]||[]).map(i=>i.name)).join(' · ');
+    list.append(el('button',{class:'hist', onclick:()=>{ draft = cloneMenu(m, draft.date); $('#historyDrawer').classList.remove('open'); update(); toast(`Loaded ${shortDate(d)}`); }},
+      el('span',{class:'d'}, shortDate(d)), el('span',{class:'s'}, names), m.example ? el('span',{class:'ex'},'example') : null));
+  }
+  list.append(el('button',{class:'btn small ghost', onclick:()=>{ history = {}; for (const k of Object.keys(history)) delete history[k]; LS.set('specials.history', history); $('#historyDrawer').classList.remove('open'); update(); toast('History cleared'); }}, 'Clear all history'));
+  openDrawer('#historyDrawer');
+});
+
+$('#settingsBtn').addEventListener('click', ()=>{
+  const b = $('#settingsBody'); b.innerHTML = '';
+  const field = (label, key, obj, type='text') => el('label',{}, label, el('input',{type, id:`set-${key}`, value:obj[key], oninput:e=>{ obj[key] = type==='number' ? Number(e.target.value) : e.target.value; persistRules(); }}));
+  const check = (label, key) => el('label',{class:'check'}, el('input',{type:'checkbox', id:`set-${key}`, checked:settings[key]?true:null, onchange:e=>{ settings[key]=e.target.checked; persistRules(); }}), label);
+  const sel = (label, key, opts) => el('label',{}, label, el('select',{id:`set-${key}`, onchange:e=>{ settings[key] = isNaN(e.target.value) ? e.target.value : Number(e.target.value); persistRules(); }}, ...opts.map(([v,t])=>el('option',{value:v, selected:String(settings[key])===String(v)?'':null}, t))));
+  b.append(el('h3',{},'Card'), el('div',{class:'row'}, sel('Card style','style',[['classic','Classic (current Pages layout)'],['ruled','Ruled, two columns']]), sel('Date shown as','dateFormat',[['dm','01/10'],['long','Thursday 1 October']])),
+    field('Heading (after the date)','title',settings), field('Line under the heading','tagline',settings), field('Cafe name (ruled style only)','cafe',settings), field('Footer line','footer',settings),
+    check('Print the group names (Food / Drinks)','sectionHeadings'));
+  b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
+    sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
+    el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
+    check('Cut marks at the folds','cutMarks'), check('Faint dashed outline around each card (for lining up the guillotine)','guides'));
+  b.append(el('h3',{},'Format rules'), el('div',{class:'row'}, field('Max name length','nameMax',rules,'number'), field('Max description length','descMax',rules,'number')),
+    el('div',{class:'row'}, field('Max items on the card','totalMax',rules,'number'), field('Currency symbol','currency',rules)));
+  b.append(el('h3',{},'Sections (max items each)'));
+  rules.sections.forEach((s,i)=> b.append(el('div',{class:'row'}, el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }})),
+    el('label',{}, 'Max items', el('input',{type:'number', id:`sec-max-${i}`, min:1, max:3, value:s.max, oninput:e=>{ s.max=Math.max(1,Math.min(3,Number(e.target.value)||1)); persistRules(); }})))));
+  b.append(el('p',{class:'hint'}, 'Codes: letters typed as tags print after the name in brackets, e.g. (a). Rules apply immediately and re-check the current menu.'));
+  b.append(el('button',{class:'btn small ghost', onclick:()=>{ rules = JSON.parse(JSON.stringify(DEFAULT_RULES)); settings = Object.assign({}, DEFAULT_SETTINGS); persistRules(); $('#settingsDrawer').classList.remove('open'); toast('Defaults restored'); }}, 'Restore defaults'));
+  openDrawer('#settingsDrawer');
+});
+function persistRules(){ LS.set('specials.rules', rules); LS.set('specials.settings', settings); update(); }
+
+let toastTimer;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 1800); }
+
+document.fonts && document.fonts.ready.then(()=>update());
+update();
+})();
+</script>
+</body>
+</html>
