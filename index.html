@@ -33,6 +33,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -178,6 +179,14 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .settings .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .settings h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;color:var(--muted)}
 .settings .check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.sync{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--muted);white-space:nowrap}
+.sync.busy{color:var(--warn)}.sync.err{background:var(--bad-soft);color:var(--bad)}
+.login{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+.login form{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.login h2{font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.login label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.login input{padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.login .err{color:var(--bad);font-size:13px;min-height:1em}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -214,6 +223,12 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 <style id="pageStyle"></style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* Shared database (Supabase). Leave both blank to run on this device only. The anon key is meant to be public;
+   the tables only accept signed-in staff (row level security). */
+window.CLOUD = { url: "", anonKey: "" };
+</script>
 </head>
 <body>
 <div class="app">
@@ -232,6 +247,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
         <input type="date" id="startDate">
       </div>
     </div>
+    <span class="sync" id="sync" hidden>This device only</span>
     <button class="btn" id="historyBtn">History</button>
     <button class="btn" id="settingsBtn">Settings</button>
     <button class="btn" id="saveBtn">Save</button>
@@ -270,6 +286,16 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
   </div>
 </div>
 
+<div class="login" id="login" hidden>
+  <form id="loginForm">
+    <h2>Special Menu</h2>
+    <p class="hint">Sign in with the cafe login to load the shared menu history.</p>
+    <label>Email <input type="email" id="loginEmail" autocomplete="username" required></label>
+    <label>Password <input type="password" id="loginPassword" autocomplete="current-password" required></label>
+    <div class="err" id="loginErr"></div>
+    <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
+  </form>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -326,7 +352,9 @@ function cloneMenu(src, date){
   return m;
 }
 let draft = LS.get('specials.draft', null);
+let draftAuto = false;
 if (!draft || draft.date !== today){
+  draftAuto = true;
   const src = history[today] || history[addDays(today,-1)] || history[addDays(today,-2)];
   draft = src ? cloneMenu(src, today) : blankMenu(today);
 }
@@ -563,12 +591,78 @@ function update(keepFocus){
   if (keepFocus && id){ const n = document.getElementById(id); if (n){ n.focus(); try{ n.setSelectionRange(pos,pos);}catch(e){} } }
 }
 
+/* ---------- Shared database (Supabase) ---------- */
+let sb = null;
+const cloudOn = () => !!(window.CLOUD && CLOUD.url && CLOUD.anonKey && window.supabase);
+function setSync(text, cls){ const n = $('#sync'); if (!n) return; n.hidden = false; n.textContent = text; n.className = 'sync' + (cls ? ' '+cls : ''); }
+async function cloudInit(){
+  if (!cloudOn()) return;
+  sb = supabase.createClient(CLOUD.url, CLOUD.anonKey);
+  setSync('Connecting…', 'busy');
+  const { data } = await sb.auth.getSession();
+  if (!data.session){ showLogin(); return; }
+  await cloudLoad();
+}
+function showLogin(){ $('#login').hidden = false; setSync('Signed out', 'err'); setTimeout(()=>$('#loginEmail').focus(), 50); }
+$('#loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const btn = $('#loginBtn'); btn.disabled = true; $('#loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('#loginEmail').value.trim(), password: $('#loginPassword').value });
+  btn.disabled = false;
+  if (error){ $('#loginErr').textContent = error.message === 'Invalid login credentials' ? 'Email or password is wrong.' : error.message; return; }
+  $('#login').hidden = true; await cloudLoad();
+});
+async function cloudLoad(){
+  setSync('Loading…', 'busy');
+  const [cfg, rows] = await Promise.all([ sb.from('config').select('id,data'), sb.from('menus').select('date,items,printed_at') ]);
+  if (cfg.error || rows.error){ console.error(cfg.error || rows.error); setSync('Offline — saved on this device only', 'err'); return; }
+  const got = Object.fromEntries(cfg.data.map(r=>[r.id, r.data]));
+  if (got.rules) rules = Object.assign({}, DEFAULT_RULES, got.rules);
+  if (got.settings) settings = Object.assign({}, DEFAULT_SETTINGS, got.settings);
+  if (rows.data.length){
+    history = {};
+    for (const r of rows.data) history[r.date] = { date:r.date, items:r.items, printedAt:r.printed_at };
+  } else {
+    // First run on an empty database: import whatever this page already holds (the October menus).
+    const payload = Object.values(history).map(m=>({ date:m.date, items:m.items, printed_at:m.printedAt||null }));
+    if (payload.length){ const { error } = await sb.from('menus').upsert(payload); if (error) console.error(error); }
+  }
+  if (!got.rules || !got.settings){ await sb.from('config').upsert([{id:'rules', data:rules},{id:'settings', data:settings}]); }
+  LS.set('specials.rules', rules); LS.set('specials.settings', settings); LS.set('specials.history', history);
+  if (draftAuto){ const src = history[today] || nearestBefore(addDays(today,-1)); if (src) draft = cloneMenu(src, today); }
+  update(); setSync('Synced');
+}
+async function cloudSaveMenu(m){
+  if (!sb) return;
+  setSync('Saving…', 'busy');
+  const { error } = await sb.from('menus').upsert({ date:m.date, items:m.items, printed_at:m.printedAt||null, updated_at:new Date().toISOString() });
+  if (error){ console.error(error); setSync('Not saved to the shared history — check connection', 'err'); toast('Saved on this device only'); return; }
+  setSync('Synced');
+}
+let cfgTimer = null;
+function cloudSaveConfig(){
+  if (!sb) return;
+  clearTimeout(cfgTimer);
+  cfgTimer = setTimeout(async ()=>{
+    setSync('Saving…', 'busy');
+    const { error } = await sb.from('config').upsert([{id:'rules', data:rules, updated_at:new Date().toISOString()},{id:'settings', data:settings, updated_at:new Date().toISOString()}]);
+    setSync(error ? 'Settings not saved to the shared database' : 'Synced', error ? 'err' : '');
+  }, 600);
+}
+async function cloudClearHistory(){
+  if (!sb) return;
+  const { error } = await sb.from('menus').delete().gte('date', '1900-01-01');
+  if (error) console.error(error);
+}
+async function cloudSignOut(){ if (sb){ await sb.auth.signOut(); } location.reload(); }
+
 /* ---------- Save / print ---------- */
 function saveToHistory(printed){
   const snap = cloneMenu(draft, draft.date);
   for (const s of rules.sections) snap.items[s.id] = snap.items[s.id].filter(i=>i.name.trim());
   snap.printedAt = printed ? new Date().toISOString() : (history[draft.date]?.printedAt || null);
   history[draft.date] = snap; LS.set('specials.history', history);
+  cloudSaveMenu(snap);
 }
 /* Sheet geometry: A4 divided into N equal cards. The split always keeps cards closest to the A-series shape. */
 const A4 = {short:210, long:297};
@@ -669,7 +763,8 @@ $('#historyBtn').addEventListener('click', ()=>{
     list.append(el('button',{class:'hist', onclick:()=>{ draft = cloneMenu(m, draft.date); $('#historyDrawer').classList.remove('open'); update(); toast(`Loaded ${shortDate(d)}`); }},
       el('span',{class:'d'}, shortDate(d)), el('span',{class:'s'}, names), m.example ? el('span',{class:'ex'},'example') : null));
   }
-  list.append(el('button',{class:'btn small ghost', onclick:()=>{ history = {}; for (const k of Object.keys(history)) delete history[k]; LS.set('specials.history', history); $('#historyDrawer').classList.remove('open'); update(); toast('History cleared'); }}, 'Clear all history'));
+  const clr = el('button',{class:'btn small ghost', onclick:()=>{ if (clr.dataset.armed !== '1'){ clr.dataset.armed = '1'; clr.textContent = 'Really clear every saved day? Click again'; return; } history = {}; LS.set('specials.history', history); cloudClearHistory(); $('#historyDrawer').classList.remove('open'); update(); toast('History cleared'); }}, 'Clear all history');
+  list.append(clr);
   openDrawer('#historyDrawer');
 });
 
@@ -691,16 +786,18 @@ $('#settingsBtn').addEventListener('click', ()=>{
   rules.sections.forEach((s,i)=> b.append(el('div',{class:'row'}, el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }})),
     el('label',{}, 'Max items', el('input',{type:'number', id:`sec-max-${i}`, min:1, max:3, value:s.max, oninput:e=>{ s.max=Math.max(1,Math.min(3,Number(e.target.value)||1)); persistRules(); }})))));
   b.append(el('p',{class:'hint'}, 'Codes: letters typed as tags print after the name in brackets, e.g. (a). Rules apply immediately and re-check the current menu.'));
+  if (sb) b.append(el('h3',{},'Shared database'), el('p',{class:'hint'},'History and settings are shared with every device that signs in.'), el('button',{class:'btn small', onclick:cloudSignOut}, 'Sign out'));
   b.append(el('button',{class:'btn small ghost', onclick:()=>{ rules = JSON.parse(JSON.stringify(DEFAULT_RULES)); settings = Object.assign({}, DEFAULT_SETTINGS); persistRules(); $('#settingsDrawer').classList.remove('open'); toast('Defaults restored'); }}, 'Restore defaults'));
   openDrawer('#settingsDrawer');
 });
-function persistRules(){ LS.set('specials.rules', rules); LS.set('specials.settings', settings); update(); }
+function persistRules(){ LS.set('specials.rules', rules); LS.set('specials.settings', settings); update(); cloudSaveConfig(); }
 
 let toastTimer;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 1800); }
 
 document.fonts && document.fonts.ready.then(()=>update());
 update();
+cloudInit().catch(e=>{ console.error(e); setSync('Offline — saved on this device only', 'err'); });
 })();
 </script>
 </body>
