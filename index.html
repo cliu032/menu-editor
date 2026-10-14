@@ -144,7 +144,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card .c-desc{grid-column:1/-1;font-size:3.3em;line-height:1.3;font-style:italic;color:#3a3a36}
 .card .c-foot{text-align:center;font-size:2.6em;letter-spacing:.08em;text-transform:uppercase;color:#4b4b46;border-top:.08em solid #9b9b94;padding-top:.55em;margin-top:.4em}
 /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
-.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 4em;--cols:1}
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 7em;--cols:1}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
@@ -200,7 +200,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .cut.horz{height:0!important;border-top:.2mm solid #000}
 .sheet.guides .card{outline:.15mm dashed #bbb;outline-offset:-.075mm}
 .sheet /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
-.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 4em;--cols:1}
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 7em;--cols:1}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
@@ -325,7 +325,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:0 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:5 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -674,16 +674,17 @@ function buildSheet(){
   sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
   sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
+  // The sheet is always exactly A4 so the folds sit on the true quarter lines. Nothing is drawn inside the
+  // printer's unprintable band (settings.printMargin), so apps like Epson iPrint have nothing to clip or shrink.
   const pm = Number(settings.printMargin)||0;
-  const k = pm ? Math.min((L.pw-2*pm)/L.pw, (L.ph-2*pm)/L.ph) : 1;
-  // Printers that force their own margin (iOS, some drivers) get the whole sheet zoomed to fit inside it; proportions and cut marks stay exact.
-  $('#pageStyle').textContent = `@page{ size:A4 ${L.land?'landscape':'portrait'}; margin:${pm}mm }` + (k<1 ? ` @media print{ .sheet{ zoom:${k.toFixed(4)} } }` : '');
+  $('#pageStyle').textContent = `@page{ size:A4 ${L.land?'landscape':'portrait'}; margin:0 }`;
   let over = false;
   for (let i=0;i<L.n;i++){ const c = el('div',{class:'card'+(L.cw < L.ch ? ' portrait' : '')}); sheet.append(c); over = renderCard(c, draft) || over; }
   if (settings.cutMarks){
     const mark = (x,y,w,h) => sheet.append(el('div',{class:'cut '+(w<h?'vert':'horz'), style:`left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm`}));
-    for (let c=1;c<L.cols;c++){ const x=c*L.cw; mark(x,0,.15,5); mark(x,L.ph-5,.15,5); for(let r=1;r<L.rows;r++) mark(x,r*L.ch-4,.15,8); }
-    for (let r=1;r<L.rows;r++){ const y=r*L.ch; mark(0,y,5,.15); mark(L.pw-5,y,5,.15); for(let c=1;c<L.cols;c++) mark(c*L.cw-4,y,8,.15); }
+    const len = 6;
+    for (let c=1;c<L.cols;c++){ const x=c*L.cw; mark(x,pm,.15,len); mark(x,L.ph-pm-len,.15,len); for(let r=1;r<L.rows;r++) mark(x,r*L.ch-4,.15,8); }
+    for (let r=1;r<L.rows;r++){ const y=r*L.ch; mark(pm,y,len,.15); mark(L.pw-pm-len,y,len,.15); for(let c=1;c<L.cols;c++) mark(c*L.cw-4,y,8,.15); }
   }
   const pl = $('#previewLabel'); if (pl) pl.textContent = `Print preview · A4 ${L.land?'landscape':'portrait'}, ${L.n===1?'one card':L.n+' cards'} (${Math.round(L.cw)} × ${Math.round(L.ch)} mm)`;
   const bs = $('#brandSub'); if (bs) bs.textContent = `${L.n}-up A4 ${L.land?'landscape':'portrait'}`;
@@ -799,8 +800,8 @@ $('#settingsBtn').addEventListener('click', ()=>{
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
     check('Cut marks at the folds','cutMarks'), check('Faint dashed outline around each card (for lining up the guillotine)','guides'),
-    sel('Printer margin to allow for','printMargin',[[0,'None (borderless)'],[3,'3 mm'],[5,'5 mm'],[8,'8 mm'],[10,'10 mm'],[12,'12 mm']]),
-    el('p',{class:'hint'}, 'If the print preview adds a white border and clips or shifts the sheet, set this to that border. The whole sheet is scaled to fit inside it, so cards come out slightly smaller but the cut marks stay on the folds.'));
+    sel('Printer unprintable edge','printMargin',[[0,'None (borderless printer)'],[3,'3 mm'],[5,'5 mm (typical Epson)'],[8,'8 mm'],[10,'10 mm'],[12,'12 mm']]),
+    el('p',{class:'hint'}, 'Cut marks and text are kept out of this band at every edge, so the printer has nothing to clip and no reason to shrink the page. Print at 100% / "Actual size", not "Fit to page".'));
   b.append(el('h3',{},'Format rules'), el('div',{class:'row'}, field('Currency symbol','currency',rules)));
   b.append(el('h3',{},'Sections'));
   rules.sections.forEach((s,i)=> b.append(el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }}))));
