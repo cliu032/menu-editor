@@ -192,8 +192,11 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 
 /* THE A4 SHEET: a grid of identical cards. Columns, rows and orientation are set from Settings (see layoutSheet). */
-.sheet{display:grid;position:relative;overflow:hidden;background:var(--paper)}
-.cut{position:absolute;background:#000}
+.sheet{display:grid;position:relative;overflow:hidden;background:var(--paper);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* Cut marks are drawn with borders, not backgrounds: iOS and Safari drop background colours when printing. */
+.cut{position:absolute;background:transparent;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cut.vert{width:0!important;border-left:.2mm solid #000}
+.cut.horz{height:0!important;border-top:.2mm solid #000}
 .sheet.guides .card{outline:.15mm dashed #bbb;outline-offset:-.075mm}
 .sheet /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
 .card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 4em;--cols:1}
@@ -687,7 +690,7 @@ function buildSheet(){
   let over = false;
   for (let i=0;i<L.n;i++){ const c = el('div',{class:'card'+(L.cw < L.ch ? ' portrait' : '')}); sheet.append(c); over = renderCard(c, draft) || over; }
   if (settings.cutMarks){
-    const mark = (x,y,w,h) => sheet.append(el('div',{class:'cut', style:`left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm`}));
+    const mark = (x,y,w,h) => sheet.append(el('div',{class:'cut '+(w<h?'vert':'horz'), style:`left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm`}));
     for (let c=1;c<L.cols;c++){ const x=c*L.cw; mark(x,0,.15,5); mark(x,L.ph-5,.15,5); for(let r=1;r<L.rows;r++) mark(x,r*L.ch-4,.15,8); }
     for (let r=1;r<L.rows;r++){ const y=r*L.ch; mark(0,y,5,.15); mark(L.pw-5,y,5,.15); for(let c=1;c<L.cols;c++) mark(c*L.cw-4,y,8,.15); }
   }
