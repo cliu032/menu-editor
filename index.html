@@ -319,7 +319,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:0 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -686,7 +686,10 @@ function buildSheet(){
   sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
   sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
-  $('#pageStyle').textContent = `@page{ size:A4 ${L.land?'landscape':'portrait'}; margin:0 }`;
+  const pm = Number(settings.printMargin)||0;
+  const k = pm ? Math.min((L.pw-2*pm)/L.pw, (L.ph-2*pm)/L.ph) : 1;
+  // Printers that force their own margin (iOS, some drivers) get the whole sheet zoomed to fit inside it; proportions and cut marks stay exact.
+  $('#pageStyle').textContent = `@page{ size:A4 ${L.land?'landscape':'portrait'}; margin:${pm}mm }` + (k<1 ? ` @media print{ .sheet{ zoom:${k.toFixed(4)} } }` : '');
   let over = false;
   for (let i=0;i<L.n;i++){ const c = el('div',{class:'card'+(L.cw < L.ch ? ' portrait' : '')}); sheet.append(c); over = renderCard(c, draft) || over; }
   if (settings.cutMarks){
@@ -782,7 +785,9 @@ $('#settingsBtn').addEventListener('click', ()=>{
   b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
-    check('Cut marks at the folds','cutMarks'), check('Faint dashed outline around each card (for lining up the guillotine)','guides'));
+    check('Cut marks at the folds','cutMarks'), check('Faint dashed outline around each card (for lining up the guillotine)','guides'),
+    sel('Printer margin to allow for','printMargin',[[0,'None (borderless)'],[3,'3 mm'],[5,'5 mm'],[8,'8 mm'],[10,'10 mm'],[12,'12 mm']]),
+    el('p',{class:'hint'}, 'If the print preview adds a white border and clips or shifts the sheet, set this to that border. The whole sheet is scaled to fit inside it, so cards come out slightly smaller but the cut marks stay on the folds.'));
   b.append(el('h3',{},'Format rules'), el('div',{class:'row'}, field('Max name length','nameMax',rules,'number'), field('Max description length','descMax',rules,'number')),
     el('div',{class:'row'}, field('Max items on the card','totalMax',rules,'number'), field('Currency symbol','currency',rules)));
   b.append(el('h3',{},'Sections (max items each)'));
