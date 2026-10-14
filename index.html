@@ -213,10 +213,11 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card.classic .c-foot{font-size:2.4em;border:0;text-transform:none;letter-spacing:0}
 .card.overflow{outline:1mm solid var(--bad)}
 @media print{
-  html,body{background:#fff;height:auto}
-  .app .topbar,.app .editor,.preview-col .label,.preview-col .hint,.drawer,.toast{display:none!important}
-  .app,.work,.preview-col,.preview-wrap,.sheet-frame{display:block;padding:0;margin:0;gap:0;position:static;width:auto;height:auto;aspect-ratio:auto;overflow:visible;max-width:none;box-shadow:none}
-  .sheet{transform:none!important;position:relative}
+  html,body{background:#fff;margin:0;padding:0;width:100%;height:100%;overflow:hidden}
+  .app .topbar,.app .editor,.preview-col .label,.preview-col .hint,.drawer,.toast,.login{display:none!important}
+  .app,.work,.preview-col,.preview-wrap,.sheet-frame{display:block;padding:0;margin:0;gap:0;position:static;width:auto;height:0;aspect-ratio:auto;overflow:visible;max-width:none;box-shadow:none}
+  /* Out of the document flow so the body has no height: the browser can never make a second page. */
+  .sheet{position:fixed;left:0;top:0;transform:none!important;overflow:hidden;page-break-inside:avoid;break-inside:avoid}
   .sheet .card.overflow{outline:none}
 }
 </style>
