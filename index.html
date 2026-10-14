@@ -220,7 +220,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
   .sheet .card.overflow{outline:none}
 }
 </style>
-<style id="pageStyle"></style>
+<style id="pageStyle">@page{size:A4 landscape;margin:0}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -264,7 +264,7 @@ window.CLOUD = { url: "https://cumljzgbewiqhkjkomej.supabase.co", anonKey: "sb_p
       <div class="preview-wrap">
         <div class="label" id="previewLabel">Print preview</div>
         <div class="sheet-frame card-shadow"><div class="sheet" id="sheet"></div></div>
-        <p class="hint">This is the whole sheet as it will print. Set printer scaling to 100% / "Actual size" and cut along the marks.</p>
+        <p class="hint">This is the whole sheet as it will print. In the print dialog use 100% / "Actual size", no margins, and check the orientation matches (Safari ignores the page's orientation, so pick it by hand there or use Export PDF).</p>
       </div>
     </div>
   </div>
@@ -683,7 +683,7 @@ function buildSheet(){
   sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
   sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
-  $('#pageStyle').textContent = `@media print{ @page{ size:A4 ${L.land?'landscape':'portrait'}; margin:0 } }`;
+  $('#pageStyle').textContent = `@page{ size:A4 ${L.land?'landscape':'portrait'}; margin:0 }`;
   let over = false;
   for (let i=0;i<L.n;i++){ const c = el('div',{class:'card'+(L.cw < L.ch ? ' portrait' : '')}); sheet.append(c); over = renderCard(c, draft) || over; }
   if (settings.cutMarks){
