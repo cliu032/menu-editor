@@ -187,6 +187,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .login label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
 .login input{padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
 .login .err{color:var(--bad);font-size:13px;min-height:1em}
+.pdfready{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px 12px 10px 16px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30;max-width:calc(100% - 32px);font-size:14px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -217,7 +218,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card.overflow{outline:1mm solid var(--bad)}
 @media print{
   html,body{background:#fff;height:auto}
-  .app .topbar,.app .editor,.preview-col .label,.preview-col .hint,.drawer,.toast,.login{display:none!important}
+  .app .topbar,.app .editor,.preview-col .label,.preview-col .hint,.drawer,.toast,.login,.pdfready{display:none!important}
   .app,.work,.preview-col,.preview-wrap,.sheet-frame{display:block;padding:0;margin:0;gap:0;position:static;width:auto;height:auto;aspect-ratio:auto;overflow:visible;max-width:none;box-shadow:none}
   .sheet{transform:none!important;position:relative}
   .sheet .card.overflow{outline:none}
@@ -298,6 +299,11 @@ window.CLOUD = { url: "https://cumljzgbewiqhkjkomej.supabase.co", anonKey: "sb_p
     <div class="err" id="loginErr"></div>
     <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
   </form>
+</div>
+<div class="pdfready" id="pdfReady" hidden>
+  <span id="pdfReadyText">PDF ready.</span>
+  <button class="btn primary small" id="pdfReadyBtn">Print / Share</button>
+  <button class="btn small ghost" id="pdfReadyClose" aria-label="Dismiss">✕</button>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -708,31 +714,56 @@ function fitSheet(){
 }
 new ResizeObserver(fitSheet).observe(document.querySelector('.sheet-frame'));
 $('#printBtn').addEventListener('click', ()=>{
+  if (IOS){ runPdf($('#printBtn'), 'Print', true); return; }
   const {errs} = validate(draft); if (errs.length) return;
   saveToHistory(true); update(); window.print();
 });
 window.addEventListener('beforeprint', buildSheet);
-$('#pdfBtn').addEventListener('click', async ()=>{
+/* On iOS the system print sheet always adds a white margin to web pages, but prints PDFs edge to edge.
+   So on iPad/iPhone both buttons build the PDF, then a second tap (needed for the share sheet) hands it to Print. */
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+async function makePdf(){
+  const L = layout();
+  const clone = $('#sheet').cloneNode(true);
+  clone.id = ''; clone.style.transform = 'none'; clone.style.zoom = '1'; clone.style.position = 'fixed'; clone.style.left = '0'; clone.style.top = '0'; clone.style.zIndex = '-1'; clone.style.visibility = 'visible';
+  clone.querySelectorAll('.card.overflow').forEach(c=>c.classList.remove('overflow'));
+  const holder = el('div',{style:'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden'}, clone);
+  document.body.append(holder);
+  await (document.fonts ? document.fonts.ready : Promise.resolve());
+  const canvas = await html2canvas(clone, {scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false, width:clone.offsetWidth, height:clone.offsetHeight});
+  holder.remove();
+  const pdf = new jspdf.jsPDF({orientation: L.land ? 'landscape' : 'portrait', unit:'mm', format:'a4', compress:true});
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, L.pw, L.ph);
+  return { pdf, name:`specials-${draft.date}.pdf` };
+}
+let readyPdf = null;
+function offerPdf(blob, name, printed){
+  readyPdf = { blob, name };
+  const bar = $('#pdfReady'); bar.hidden = false; $('#pdfReadyBtn').textContent = printed ? 'Print' : 'Share / Save';
+  $('#pdfReadyText').textContent = printed ? 'Sheet ready. Tap Print, then choose Print in the share sheet.' : 'PDF ready.';
+}
+$('#pdfReadyBtn').addEventListener('click', async ()=>{
+  if (!readyPdf) return;
+  const file = new File([readyPdf.blob], readyPdf.name, {type:'application/pdf'});
+  try{
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:readyPdf.name}); }
+    else { window.open(URL.createObjectURL(readyPdf.blob), '_blank'); }
+  }catch(e){ if (e && e.name !== 'AbortError'){ console.error(e); window.open(URL.createObjectURL(readyPdf.blob), '_blank'); } }
+});
+$('#pdfReadyClose').addEventListener('click', ()=>{ $('#pdfReady').hidden = true; readyPdf = null; });
+async function runPdf(btn, label, printed){
   const {errs} = validate(draft); if (errs.length) return;
   if (!window.html2canvas || !window.jspdf){ toast('PDF library not loaded (offline?). Use Print and choose "Save as PDF".'); return; }
-  const btn = $('#pdfBtn'); btn.disabled = true; btn.textContent = 'Exporting…';
+  btn.disabled = true; btn.textContent = 'Preparing…';
   try{
-    const L = layout();
-    const clone = $('#sheet').cloneNode(true);
-    clone.id = ''; clone.style.transform = 'none'; clone.style.position = 'fixed'; clone.style.left = '0'; clone.style.top = '0'; clone.style.zIndex = '-1'; clone.style.visibility = 'visible';
-    clone.querySelectorAll('.card.overflow').forEach(c=>c.classList.remove('overflow'));
-    const holder = el('div',{style:'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden'}, clone);
-    document.body.append(holder);
-    await (document.fonts ? document.fonts.ready : Promise.resolve());
-    const canvas = await html2canvas(clone, {scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false, width:clone.offsetWidth, height:clone.offsetHeight});
-    holder.remove();
-    const pdf = new jspdf.jsPDF({orientation: L.land ? 'landscape' : 'portrait', unit:'mm', format:'a4', compress:true});
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, L.pw, L.ph);
-    pdf.save(`specials-${draft.date}.pdf`);
-    saveToHistory(false); update(); toast('PDF exported');
-  }catch(e){ console.error(e); toast('Could not export the PDF. Use Print and choose "Save as PDF".'); }
-  btn.disabled = false; btn.textContent = 'Export PDF';
-});
+    const { pdf, name } = await makePdf();
+    saveToHistory(printed); update();
+    if (IOS) offerPdf(pdf.output('blob'), name, printed);
+    else { pdf.save(name); toast('PDF exported'); }
+  }catch(e){ console.error(e); toast('Could not make the PDF. Use Print and choose "Save as PDF".'); }
+  btn.disabled = false; btn.textContent = label;
+}
+$('#pdfBtn').addEventListener('click', ()=>runPdf($('#pdfBtn'), 'Export PDF', false));
 $('#saveBtn').addEventListener('click', ()=>{ saveToHistory(false); update(); toast('Saved to history'); });
 
 /* ---------- Start-from & date ---------- */
