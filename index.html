@@ -318,10 +318,10 @@ const LS = {
 /* ---------- Format rules & settings (owner-editable, stored as data) ---------- */
 const DEFAULT_RULES = {
   sections: [
-    {id:'food', name:'Food', max:7},
-    {id:'drinks', name:'Drinks', max:4}
+    {id:'food', name:'Food'},
+    {id:'drinks', name:'Drinks'}
   ],
-  minPerSection: 1, totalMax: 11, nameMax: 60, descMax: 70,
+  minPerSection: 1, nameMax: 60, descMax: 70,
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
@@ -400,7 +400,6 @@ function validate(m){
     const filled = list.filter(i => i.name.trim());
     total += filled.length;
     if (filled.length < rules.minPerSection) errs.push(`${s.name}: needs at least ${rules.minPerSection} item`);
-    if (filled.length > s.max) errs.push(`${s.name}: no more than ${s.max} item${s.max>1?'s':''}`);
     list.forEach((i, k) => {
       const where = `${s.name} ${k+1}`;
       if (!i.name.trim()) { if (i.desc.trim() || i.price.trim()) errs.push(`${where}: give it a name or remove it`); return; }
@@ -412,7 +411,6 @@ function validate(m){
       if (names.indexOf(i.name.trim().toLowerCase()) !== k && names.filter(n=>n===i.name.trim().toLowerCase()).length>1) errs.push(`${where}: duplicate of another item`);
     });
   }
-  if (total > rules.totalMax) errs.push(`Card holds ${rules.totalMax} items; you have ${total}`);
   return {errs, total};
 }
 
@@ -480,11 +478,11 @@ function renderEditor(){
     const dl = el('datalist', {id:`dl-${s.id}`});
     for (const [,e] of historyIndex(s.id)) dl.append(el('option', {value:e.item.name}));
     sec.append(dl);
-    const header = el('header', {}, el('h2', {}, s.name), el('span', {class:'count'}, `${list.filter(i=>i.name.trim()).length} of ${s.max}`), el('span',{class:'spacer'}),
+    const header = el('header', {}, el('h2', {}, s.name), el('span', {class:'count'}, `${list.filter(i=>i.name.trim()).length} item${list.filter(i=>i.name.trim()).length===1?'':'s'}`), el('span',{class:'spacer'}),
       el('button', {class:'btn small', onclick:()=>{ sec.querySelector('.sugg').replaceChildren(...suggestionChips(s)); }}, 'Suggest'));
     sec.append(header);
     list.forEach((it, k) => sec.append(itemRow(s, it, k)));
-    if (list.length < s.max) sec.append(el('div',{class:'add-row'}, el('button',{class:'btn small', onclick:()=>{ list.push({name:'',desc:'',price:'',tags:[]}); update(); }}, '+ Add item'), el('span',{class:'hint'},`Up to ${s.max} in this section`)));
+    sec.append(el('div',{class:'add-row'}, el('button',{class:'btn small', onclick:()=>{ list.push({name:'',desc:'',price:'',tags:[]}); update(); }}, '+ Add item'), el('span',{class:'hint'},'The preview turns red if the card runs out of room')));
     sec.append(el('div',{class:'sugg'}));
     root.append(sec);
   }
@@ -493,7 +491,7 @@ function suggestionChips(s){
   return suggest(s.id, 4).map(({e, why}) => el('button', {class:'chip', title:'Use this item', onclick:()=>{
     const list = draft.items[s.id];
     const empty = list.findIndex(i=>!i.name.trim());
-    const target = empty >= 0 ? list[empty] : (list.length < s.max ? (list.push({name:'',desc:'',price:'',tags:[]}), list[list.length-1]) : list[list.length-1]);
+    const target = empty >= 0 ? list[empty] : (list.push({name:'',desc:'',price:'',tags:[]}), list[list.length-1]);
     Object.assign(target, {name:e.item.name, desc:e.item.desc, price:e.item.price, tags:[...(e.item.tags||[])]});
     update(); toast(`Added ${e.item.name}`);
   }}, el('b',{}, e.item.name), el('span',{}, why)));
@@ -572,7 +570,7 @@ function renderStatus(errs, total, over){
   const all = [...errs]; if (over) all.push('Card is overflowing the A6 area; shorten a description or remove an item');
   st.className = 'status ' + (all.length ? 'bad' : 'ok');
   st.append(el('strong',{}, all.length ? `${all.length} thing${all.length>1?'s':''} to fix before printing` : 'Ready to print'));
-  st.append(el('span',{class:'pill'}, `${total} / ${rules.totalMax} items`));
+  st.append(el('span',{class:'pill'}, `${total} item${total===1?'':'s'}`));
   st.append(el('span',{class:'pill'}, `${shortDate(draft.date)}`));
   if (history[draft.date]) st.append(el('span',{class:'pill'}, history[draft.date].printedAt ? 'Printed today' : 'Saved'));
   if (all.length) st.append(el('ul',{}, ...all.map(e=>el('li',{},e))));
@@ -820,10 +818,9 @@ $('#settingsBtn').addEventListener('click', ()=>{
     sel('Printer margin to allow for','printMargin',[[0,'None (borderless)'],[3,'3 mm'],[5,'5 mm'],[8,'8 mm'],[10,'10 mm'],[12,'12 mm']]),
     el('p',{class:'hint'}, 'If the print preview adds a white border and clips or shifts the sheet, set this to that border. The whole sheet is scaled to fit inside it, so cards come out slightly smaller but the cut marks stay on the folds.'));
   b.append(el('h3',{},'Format rules'), el('div',{class:'row'}, field('Max name length','nameMax',rules,'number'), field('Max description length','descMax',rules,'number')),
-    el('div',{class:'row'}, field('Max items on the card','totalMax',rules,'number'), field('Currency symbol','currency',rules)));
-  b.append(el('h3',{},'Sections (max items each)'));
-  rules.sections.forEach((s,i)=> b.append(el('div',{class:'row'}, el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }})),
-    el('label',{}, 'Max items', el('input',{type:'number', id:`sec-max-${i}`, min:1, max:3, value:s.max, oninput:e=>{ s.max=Math.max(1,Math.min(3,Number(e.target.value)||1)); persistRules(); }})))));
+    el('div',{class:'row'}, field('Currency symbol','currency',rules)));
+  b.append(el('h3',{},'Sections'));
+  rules.sections.forEach((s,i)=> b.append(el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }}))));
   b.append(el('p',{class:'hint'}, 'Codes: letters typed as tags print after the name in brackets, e.g. (a). Rules apply immediately and re-check the current menu.'));
   if (sb) b.append(el('h3',{},'Shared database'), el('p',{class:'hint'},'History and settings are shared with every device that signs in.'), el('button',{class:'btn small', onclick:cloudSignOut}, 'Sign out'));
   b.append(el('button',{class:'btn small ghost', onclick:()=>{ rules = JSON.parse(JSON.stringify(DEFAULT_RULES)); settings = Object.assign({}, DEFAULT_SETTINGS); persistRules(); $('#settingsDrawer').classList.remove('open'); toast('Defaults restored'); }}, 'Restore defaults'));
