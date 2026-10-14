@@ -119,7 +119,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 
 /* THE CARD: size comes from the sheet layout (A4 divided N ways). 1em = 1mm at A6 size; the whole card scales
    by --u (sqrt of area ratio to A6) so the same design fits a whole page or an eighth of one. */
-.card{width:var(--cw);height:var(--ch);font-size:calc(var(--u,1) * 1mm);background:var(--paper);color:var(--paper-ink);padding:6em 8em 5.5em;display:flex;flex-direction:column;font-family:var(--body);position:relative;overflow:hidden}
+.card{width:var(--cw);height:var(--ch);font-size:calc(var(--u,1) * 1mm);background:var(--paper);color:var(--paper-ink);padding:11em 11em 11em;display:flex;flex-direction:column;font-family:var(--body);position:relative;overflow:hidden}
 .card .c-head{display:flex;align-items:baseline;justify-content:space-between;gap:4em;border-bottom:.5em solid var(--paper-rule);padding-bottom:1.8em}
 .card .c-cafe{font-family:var(--display);font-weight:600;font-size:6.4em;line-height:1;letter-spacing:.06em;text-transform:uppercase}
 .card .c-tag{font-size:2.8em;font-style:italic;color:#3a3a36;white-space:nowrap}
@@ -144,15 +144,15 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card .c-desc{grid-column:1/-1;font-size:3.3em;line-height:1.3;font-style:italic;color:#3a3a36}
 .card .c-foot{text-align:center;font-size:2.6em;letter-spacing:.08em;text-transform:uppercase;color:#4b4b46;border-top:.08em solid #9b9b94;padding-top:.55em;margin-top:.4em}
 /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
-.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 7em;--cols:1}
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 11em;--cols:1}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
-.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3.5em;padding-top:2.4em}
+.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3em;padding-top:2em}
 .card.classic .c-sec{padding:0}
 .card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
 .card.classic .c-sec-name::after{display:none}
-.card.classic .c-item{margin-top:.9em;column-gap:4em}
+.card.classic .c-item{margin-top:.7em;column-gap:4em}
 .card.classic .c-item:first-child{margin-top:0}
 .card.classic .c-sec-name + .c-item{margin-top:0}
 .card.classic .c-name{font-size:2.4em;line-height:1.25}
@@ -200,15 +200,15 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .cut.horz{height:0!important;border-top:.2mm solid #000}
 .sheet.guides .card{outline:.15mm dashed #bbb;outline-offset:-.075mm}
 .sheet /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
-.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 7em;--cols:1}
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 11em;--cols:1}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
-.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3.5em;padding-top:2.4em}
+.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3em;padding-top:2em}
 .card.classic .c-sec{padding:0}
 .card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
 .card.classic .c-sec-name::after{display:none}
-.card.classic .c-item{margin-top:.9em;column-gap:4em}
+.card.classic .c-item{margin-top:.7em;column-gap:4em}
 .card.classic .c-item:first-child{margin-top:0}
 .card.classic .c-sec-name + .c-item{margin-top:0}
 .card.classic .c-name{font-size:2.4em;line-height:1.25}
@@ -325,7 +325,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:5 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -800,7 +800,7 @@ $('#settingsBtn').addEventListener('click', ()=>{
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
     check('Cut marks at the folds','cutMarks'), check('Faint dashed outline around each card (for lining up the guillotine)','guides'),
-    sel('Printer unprintable edge','printMargin',[[0,'None (borderless printer)'],[3,'3 mm'],[5,'5 mm (typical Epson)'],[8,'8 mm'],[10,'10 mm'],[12,'12 mm']]),
+    sel('Printer unprintable edge','printMargin',[[0,'None (borderless printer)'],[3,'3 mm'],[5,'5 mm'],[8,'8 mm'],[10,'10 mm (Epson iPrint)'],[12,'12 mm']]),
     el('p',{class:'hint'}, 'Cut marks and text are kept out of this band at every edge, so the printer has nothing to clip and no reason to shrink the page. Print at 100% / "Actual size", not "Fit to page".'));
   b.append(el('h3',{},'Format rules'), el('div',{class:'row'}, field('Currency symbol','currency',rules)));
   b.append(el('h3',{},'Sections'));
