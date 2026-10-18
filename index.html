@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261018-035514">
+<meta name="build" content="20261018-035533">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -627,7 +627,6 @@ function refreshToday(){
 setInterval(refreshToday, 60*1000);
 document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState === 'visible'){ refreshToday(); retryPending(); cloudRefresh(); checkVersion(); } });
 window.addEventListener('focus', ()=>{ refreshToday(); retryPending(); });
-setInterval(()=>{ cloudRefresh(); checkVersion(); }, 5*60*1000);
 
 /* ---------- Keep an open tab current: new code and other devices' saves ---------- */
 const BUILD = (document.querySelector('meta[name="build"]')||{}).content || '';
