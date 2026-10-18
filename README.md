@@ -4,3 +4,21 @@ Daily specials editor for the cafe. One static page: edit today's specials, get 
 
 - Live: https://cliu032.github.io/menu-editor/
 - Menu history and settings are stored in the browser that opens the page.
+
+## Shared activity log (optional)
+
+Run once in the Supabase SQL editor to keep a cross-device trace of loads, saves, prints and day changes:
+
+```sql
+create table menu_log (
+  id bigserial primary key,
+  at timestamptz default now(),
+  kind text not null,
+  detail jsonb,
+  device text
+);
+alter table menu_log enable row level security;
+create policy "staff can do everything" on menu_log for all to authenticated using (true) with check (true);
+```
+
+Each device also keeps its own log under Settings → Activity log.

@@ -312,6 +312,7 @@ window.CLOUD = { url: "https://cumljzgbewiqhkjkomej.supabase.co", anonKey: "sb_p
 <script>
 (function(){
 'use strict';
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -340,7 +341,7 @@ const pad = n => String(n).padStart(2,'0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const fromIso = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
 const addDays = (s, n) => { const d = fromIso(s); d.setDate(d.getDate()+n); return iso(d); };
-const today = iso(new Date());
+let today = iso(new Date());
 const longDate = s => fromIso(s).toLocaleDateString('en-AU', {weekday:'long', day:'numeric', month:'long'});
 const shortDate = s => fromIso(s).toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'});
 const daysBetween = (a,b) => Math.round((fromIso(b)-fromIso(a))/86400000);
@@ -597,24 +598,59 @@ async function cloudInit(){
   await cloudLoad();
 }
 function showLogin(){ $('#login').hidden = false; setSync('Signed out', 'err'); setTimeout(()=>$('#loginEmail').focus(), 50); }
+/* ---------- Activity log (kept on this device, and in the shared menu_log table when it exists) ---------- */
+const DEVICE = (()=>{ try{ let d = localStorage.getItem('specials.device'); if (!d){ d = (IOS ? 'ios-' : 'web-') + Math.random().toString(36).slice(2,7); localStorage.setItem('specials.device', d); } return d; }catch(e){ return 'unknown'; } })();
+function logEvent(kind, detail){
+  const entry = { t:new Date().toISOString(), kind, detail: detail||null };
+  try{ const log = LS.get('specials.log', []); log.push(entry); while (log.length > 400) log.shift(); LS.set('specials.log', log); }catch(e){}
+  if (sb) sb.from('menu_log').insert({ kind, detail: detail||null, device: DEVICE }).then(r=>{ if (r.error && !/menu_log/.test(r.error.message||'')) console.warn('log', r.error); });
+}
+const itemCount = m => rules.sections.reduce((n,s)=>n+((m.items[s.id]||[]).filter(i=>i.name.trim()).length),0);
+const sameMenu = (a,b) => JSON.stringify(cloneMenu(a,'x').items) === JSON.stringify(cloneMenu(b,'x').items);
+
+/* ---------- Day rollover: the tab may stay open for days, so "today" is re-checked, not fixed at load ---------- */
+function refreshToday(){
+  const t = iso(new Date()); if (t === today) return;
+  const old = today; today = t;
+  if (draft.date === old){
+    // Keep anything typed for the day that just ended, then start the new day from the most recent menu.
+    if (history[old] ? !sameMenu(draft, history[old]) : itemCount(draft) > 0){ saveToHistory(false); }
+    const src = history[today] || nearestBefore(addDays(today,-1));
+    draft = src ? cloneMenu(src, today) : blankMenu(today); draftAuto = true;
+    update(); toast(`New day: menu for ${dm(today)} started from ${src ? dm(src.date) : 'blank'}`);
+    logEvent('newday', { from: old, to: today, startedFrom: src ? src.date : null });
+  } else logEvent('newday', { from: old, to: today, draftDate: draft.date });
+}
+setInterval(refreshToday, 60*1000);
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState === 'visible'){ refreshToday(); retryPending(); } });
+window.addEventListener('focus', ()=>{ refreshToday(); retryPending(); });
+window.addEventListener('online', retryPending);
+
+/* Saves that failed are kept and retried, so a dropped connection cannot lose a day. */
+const pending = LS.get('specials.pending', {});
+async function retryPending(){
+  if (!sb) return;
+  for (const d of Object.keys(pending)){ const m = pending[d]; delete pending[d]; LS.set('specials.pending', pending); await cloudSaveMenu(m); }
+}
+
 $('#loginForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const btn = $('#loginBtn'); btn.disabled = true; $('#loginErr').textContent = '';
   const { error } = await sb.auth.signInWithPassword({ email: $('#loginEmail').value.trim(), password: $('#loginPassword').value });
   btn.disabled = false;
-  if (error){ $('#loginErr').textContent = error.message === 'Invalid login credentials' ? 'Email or password is wrong.' : error.message; return; }
-  $('#login').hidden = true; await cloudLoad();
+  if (error){ $('#loginErr').textContent = error.message === 'Invalid login credentials' ? 'Email or password is wrong.' : error.message; logEvent('signin_fail', { message:error.message }); return; }
+  $('#login').hidden = true; logEvent('signin'); await cloudLoad();
 });
 async function cloudLoad(){
   setSync('Loading…', 'busy');
-  const [cfg, rows] = await Promise.all([ sb.from('config').select('id,data'), sb.from('menus').select('date,items,printed_at') ]);
-  if (cfg.error || rows.error){ console.error(cfg.error || rows.error); setSync('Offline — saved on this device only', 'err'); return; }
+  const [cfg, rows] = await Promise.all([ sb.from('config').select('id,data'), sb.from('menus').select('date,items,printed_at,updated_at') ]);
+  if (cfg.error || rows.error){ console.error(cfg.error || rows.error); setSync('Offline — saved on this device only', 'err'); logEvent('cloud_load_fail', { message:(cfg.error||rows.error).message }); return; }
   const got = Object.fromEntries(cfg.data.map(r=>[r.id, r.data]));
   if (got.rules) rules = Object.assign({}, DEFAULT_RULES, got.rules);
   if (got.settings) settings = Object.assign({}, DEFAULT_SETTINGS, got.settings);
   if (rows.data.length){
     history = {};
-    for (const r of rows.data) history[r.date] = { date:r.date, items:r.items, printedAt:r.printed_at };
+    for (const r of rows.data) history[r.date] = { date:r.date, items:r.items, printedAt:r.printed_at, updatedAt:r.updated_at };
   } else {
     // First run on an empty database: import whatever this page already holds (the October menus).
     const payload = Object.values(history).map(m=>({ date:m.date, items:m.items, printed_at:m.printedAt||null }));
@@ -624,13 +660,16 @@ async function cloudLoad(){
   LS.set('specials.rules', rules); LS.set('specials.settings', settings); LS.set('specials.history', history);
   if (draftAuto){ const src = history[today] || nearestBefore(addDays(today,-1)); if (src) draft = cloneMenu(src, today); }
   update(); setSync('Synced');
+  logEvent('cloud_load', { rows: rows.data.length, today, draftDate: draft.date, draftItems: itemCount(draft), latest: Object.keys(history).sort().pop() || null });
+  retryPending();
 }
 async function cloudSaveMenu(m){
   if (!sb) return;
   setSync('Saving…', 'busy');
-  const { error } = await sb.from('menus').upsert({ date:m.date, items:m.items, printed_at:m.printedAt||null, updated_at:new Date().toISOString() });
-  if (error){ console.error(error); setSync('Not saved to the shared history — check connection', 'err'); toast('Saved on this device only'); return; }
-  setSync('Synced');
+  const at = new Date().toISOString();
+  const { error } = await sb.from('menus').upsert({ date:m.date, items:m.items, printed_at:m.printedAt||null, updated_at:at });
+  if (error){ console.error(error); pending[m.date] = m; LS.set('specials.pending', pending); setSync(`Not saved to the shared history (${m.date}) — will retry`, 'err'); toast('Not saved to the shared history yet — will retry'); logEvent('save_fail', { date:m.date, items:itemCount(m), message:error.message }); return; }
+  m.updatedAt = at; setSync('Synced'); logEvent('save_ok', { date:m.date, items:itemCount(m), printed: !!m.printedAt });
 }
 let cfgTimer = null;
 function cloudSaveConfig(){
@@ -707,12 +746,11 @@ new ResizeObserver(fitSheet).observe(document.querySelector('.sheet-frame'));
 $('#printBtn').addEventListener('click', ()=>{
   if (IOS){ runPdf($('#printBtn'), 'Print', true); return; }
   const {errs} = validate(draft); if (errs.length) return;
-  saveToHistory(true); update(); window.print();
+  logEvent('print', { date:draft.date, items:itemCount(draft) }); saveToHistory(true); update(); window.print();
 });
 window.addEventListener('beforeprint', buildSheet);
 /* On iOS the system print sheet always adds a white margin to web pages, but prints PDFs edge to edge.
    So on iPad/iPhone both buttons build the PDF, then a second tap (needed for the share sheet) hands it to Print. */
-const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 async function makePdf(){
   const L = layout();
   const clone = $('#paper').cloneNode(true);
@@ -748,7 +786,7 @@ async function runPdf(btn, label, printed){
   btn.disabled = true; btn.textContent = 'Preparing…';
   try{
     const { pdf, name } = await makePdf();
-    saveToHistory(printed); update();
+    logEvent(printed ? 'print_pdf' : 'export_pdf', { date:draft.date, items:itemCount(draft) }); saveToHistory(printed); update();
     if (IOS) offerPdf(pdf.output('blob'), name, printed);
     else { pdf.save(name); toast('PDF exported'); }
   }catch(e){ console.error(e); toast('Could not make the PDF. Use Print and choose "Save as PDF".'); }
@@ -758,7 +796,7 @@ $('#pdfBtn').addEventListener('click', ()=>runPdf($('#pdfBtn'), 'Export PDF', fa
 $('#saveBtn').addEventListener('click', ()=>{ saveToHistory(false); update(); toast('Saved to history'); });
 
 /* ---------- Start-from & date ---------- */
-$('#menuDate').addEventListener('change', e=>{ if (!e.target.value) return; draft.date = e.target.value; update(); });
+$('#menuDate').addEventListener('change', e=>{ if (!e.target.value) return; logEvent('date_change', { from:draft.date, to:e.target.value }); draft.date = e.target.value; update(); });
 const startMenu = $('#startMenu');
 $('#startBtn').addEventListener('click', e=>{ e.stopPropagation(); startMenu.classList.toggle('open'); });
 document.addEventListener('click', e=>{ if (!startMenu.contains(e.target)) startMenu.classList.remove('open'); });
@@ -780,6 +818,7 @@ function openDrawer(id){ $(id).classList.add('open'); }
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', e=>e.target.closest('.drawer').classList.remove('open')));
 document.addEventListener('keydown', e=>{ if (e.key==='Escape'){ document.querySelectorAll('.drawer.open').forEach(d=>d.classList.remove('open')); startMenu.classList.remove('open'); } });
 
+const when = t => { try{ const d = new Date(t); return d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
 $('#historyBtn').addEventListener('click', ()=>{
   const list = $('#historyList'); list.innerHTML = '';
   const dates = Object.keys(history).sort().reverse();
@@ -789,7 +828,7 @@ $('#historyBtn').addEventListener('click', ()=>{
     const m = history[d];
     const names = rules.sections.flatMap(s=>(m.items[s.id]||[]).map(i=>i.name)).join(' · ');
     list.append(el('button',{class:'hist', onclick:()=>{ draft = cloneMenu(m, draft.date); $('#historyDrawer').classList.remove('open'); update(); toast(`Loaded ${shortDate(d)}`); }},
-      el('span',{class:'d'}, shortDate(d)), el('span',{class:'s'}, names), m.example ? el('span',{class:'ex'},'example') : null));
+      el('span',{class:'d'}, shortDate(d)), el('span',{class:'s'}, names), el('span',{class:'ex'}, m.printedAt ? 'printed '+when(m.printedAt) : (m.updatedAt ? 'saved '+when(m.updatedAt) : ''))));
   }
   const clr = el('button',{class:'btn small ghost', onclick:()=>{ if (clr.dataset.armed !== '1'){ clr.dataset.armed = '1'; clr.textContent = 'Really clear every saved day? Click again'; return; } history = {}; LS.set('specials.history', history); cloudClearHistory(); $('#historyDrawer').classList.remove('open'); update(); toast('History cleared'); }}, 'Clear all history');
   list.append(clr);
@@ -814,6 +853,12 @@ $('#settingsBtn').addEventListener('click', ()=>{
   b.append(el('h3',{},'Sections'));
   rules.sections.forEach((s,i)=> b.append(el('label',{}, `Section ${i+1}`, el('input',{type:'text', id:`sec-name-${i}`, value:s.name, oninput:e=>{ s.name=e.target.value; persistRules(); }}))));
   b.append(el('p',{class:'hint'}, 'Codes: letters typed as tags print after the name in brackets, e.g. (a). Rules apply immediately and re-check the current menu.'));
+  const log = LS.get('specials.log', []).slice(-60).reverse();
+  const logBox = el('div',{style:'font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.45;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--bg);white-space:pre-wrap;word-break:break-word'},
+    log.length ? log.map(e=>`${when(e.t)}  ${e.kind}${e.detail?'  '+JSON.stringify(e.detail):''}`).join('\n') : 'Nothing logged on this device yet.');
+  b.append(el('h3',{},'Activity log (this device)'), logBox,
+    el('div',{style:'display:flex;gap:8px'}, el('button',{class:'btn small', onclick:async()=>{ const text = LS.get('specials.log', []).map(e=>`${e.t}\t${e.kind}\t${e.detail?JSON.stringify(e.detail):''}`).join('\n'); try{ await navigator.clipboard.writeText(text); toast('Log copied'); }catch(e){ toast('Could not copy'); } }}, 'Copy full log'),
+      el('span',{class:'hint'}, `Device ${DEVICE}. Every device also writes to the shared menu_log table if it exists.`)));
   if (sb) b.append(el('h3',{},'Shared database'), el('p',{class:'hint'},'History and settings are shared with every device that signs in.'), el('button',{class:'btn small', onclick:cloudSignOut}, 'Sign out'));
   b.append(el('button',{class:'btn small ghost', onclick:()=>{ rules = JSON.parse(JSON.stringify(DEFAULT_RULES)); settings = Object.assign({}, DEFAULT_SETTINGS); persistRules(); $('#settingsDrawer').classList.remove('open'); toast('Defaults restored'); }}, 'Restore defaults'));
   openDrawer('#settingsDrawer');
@@ -833,7 +878,8 @@ function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add
 
 document.fonts && document.fonts.ready.then(()=>update());
 update();
-cloudInit().catch(e=>{ console.error(e); setSync('Offline — saved on this device only', 'err'); });
+logEvent('load', { today, draftDate: draft.date, draftItems: itemCount(draft), draftAuto });
+cloudInit().catch(e=>{ console.error(e); setSync('Offline — saved on this device only', 'err'); logEvent('cloud_init_fail', { message: String(e && e.message || e) }); });
 })();
 </script>
 </body>
