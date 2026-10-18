@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
+<meta name="build" content="20261018-035514">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -370,6 +371,8 @@ if (!draft || draft.date !== today){
   const src = history[today] || history[addDays(today,-1)] || history[addDays(today,-2)];
   draft = src ? cloneMenu(src, today) : blankMenu(today);
 }
+let lastInput = 0;
+document.addEventListener('input', e=>{ lastInput = Date.now(); if (e.target.closest && e.target.closest('#sections')) draftAuto = false; }, true);
 const saveDraft = () => LS.set('specials.draft', draft);
 
 /* ---------- Text rules ---------- */
@@ -622,8 +625,44 @@ function refreshToday(){
   } else logEvent('newday', { from: old, to: today, draftDate: draft.date });
 }
 setInterval(refreshToday, 60*1000);
-document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState === 'visible'){ refreshToday(); retryPending(); } });
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState === 'visible'){ refreshToday(); retryPending(); cloudRefresh(); checkVersion(); } });
 window.addEventListener('focus', ()=>{ refreshToday(); retryPending(); });
+setInterval(()=>{ cloudRefresh(); checkVersion(); }, 5*60*1000);
+
+/* ---------- Keep an open tab current: new code and other devices' saves ---------- */
+const BUILD = (document.querySelector('meta[name="build"]')||{}).content || '';
+let updateSeen = null;
+async function checkVersion(){
+  if (!/^https?:/.test(location.protocol)) return;
+  try{
+    const r = await fetch('version.txt?t=' + Date.now(), { cache:'no-store' }); if (!r.ok) return;
+    const v = (await r.text()).trim(); if (!v || v === BUILD) return;
+    // The draft is kept in browser storage, so a reload loses nothing; just don't yank the page mid-typing.
+    if (Date.now() - lastInput > 60*1000){ logEvent('autoupdate', { from:BUILD, to:v }); location.reload(); }
+    else if (updateSeen !== v){ updateSeen = v; toast('A newer version is ready — it will load when you pause'); }
+  }catch(e){}
+}
+let refreshing = false;
+async function cloudRefresh(){
+  if (!sb || refreshing) return; refreshing = true;
+  try{
+    const { data, error } = await sb.from('menus').select('date,items,printed_at,updated_at');
+    if (error || !data) return;
+    const before = JSON.stringify(history[draft.date]?.items || null);
+    const fresh = {};
+    for (const r of data) fresh[r.date] = { date:r.date, items:r.items, printedAt:r.printed_at, updatedAt:r.updated_at };
+    for (const d of Object.keys(pending)) if (history[d]) fresh[d] = history[d];   // our unsent saves win
+    history = fresh; LS.set('specials.history', history);
+    const after = JSON.stringify(history[draft.date]?.items || null);
+    // If another device saved the day being shown, and nothing here has been typed since it was loaded, show theirs.
+    const prev = before && before !== 'null' ? { items: JSON.parse(before) } : null;
+    const untouched = draftAuto || (prev && sameMenu(draft, prev));
+    if (after !== before && history[draft.date] && untouched){
+      draft = cloneMenu(history[draft.date], draft.date); update(); toast(`Menu for ${dm(draft.date)} updated from another device`);
+      logEvent('refresh_draft', { date:draft.date });
+    } else update();
+  }catch(e){ console.warn(e); } finally{ refreshing = false; }
+}
 window.addEventListener('online', retryPending);
 
 /* Saves that failed are kept and retried, so a dropped connection cannot lose a day. */

@@ -22,3 +22,7 @@ create policy "staff can do everything" on menu_log for all to authenticated usi
 ```
 
 Each device also keeps its own log under Settings → Activity log.
+
+## Releasing a change
+
+Run `./stamp.sh` before committing: it writes the same build stamp into `index.html` and `version.txt`. Open tabs poll `version.txt` and reload themselves when a new stamp appears (only when nobody has typed for a minute; the draft is kept in browser storage so nothing is lost).
