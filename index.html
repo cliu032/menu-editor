@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261020-033249">
+<meta name="build" content="20261020-034543">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -156,9 +156,8 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
 .card.classic .c-sec-name::after{display:none}
 .card.classic .c-item{margin-top:.7em;column-gap:4em}
-/* Price next to the name instead of on the far right edge */
-.sheet.price-near .card .c-item{grid-template-columns:max-content max-content;justify-content:start;column-gap:var(--pgap,5em)}
-.sheet.price-near .card .c-price{text-align:left}
+/* Prices stay right-aligned in a column; the column can be pulled in from the card's right edge. */
+.sheet .card .c-price{margin-right:var(--pinset,0)}
 .card.classic .c-item:first-child{margin-top:0}
 .card.classic .c-sec-name + .c-item{margin-top:0}
 .card.classic .c-name{font-size:2.4em;line-height:1.25}
@@ -316,7 +315,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontScale:100, pricePos:'near', priceGap:5 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontScale:100, priceInset:0 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -739,7 +738,7 @@ function buildSheet(){
   sheet.style.width = L.pw+'mm'; sheet.style.height = L.ph+'mm'; paper.style.width = L.pw+'mm'; paper.style.height = L.ph+'mm';
   sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
   sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
-  sheet.style.setProperty('--fs', (Number(settings.fontScale)||100)/100); sheet.classList.toggle('price-near', settings.pricePos === 'near'); sheet.style.setProperty('--pgap', (Number(settings.priceGap)||5)+'em');
+  sheet.style.setProperty('--fs', (Number(settings.fontScale)||100)/100); sheet.style.setProperty('--pinset', (Number(settings.priceInset)||0)+'em');
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
   // Edge adjustment (settings.printMargin, mm). Positive: cut marks start that far inside the paper edge, so a
   // printer's unprintable band has nothing to clip. Negative: overscan — the sheet is enlarged around its centre so
@@ -870,8 +869,7 @@ $('#settingsBtn').addEventListener('click', ()=>{
     field('Heading (after the date)','title',settings), field('Line under the heading','tagline',settings), field('Cafe name (ruled style only)','cafe',settings), field('Footer line','footer',settings),
     check('Print the group names (Food / Drinks)','sectionHeadings'),
     el('h3',{},'Text'), slider('Text size (%)','fontScale',60,160,5,100),
-    sel('Price position','pricePos',[['near','Next to the name'],['right','Flush with the right edge']]),
-    slider('Gap between name and price (mm at A6)','priceGap',1,20,0.5,5));
+    slider('Price column: distance in from the right edge (mm at A6)','priceInset',0,80,1,0));
   b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
