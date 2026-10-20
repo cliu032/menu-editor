@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261020-034716">
+<meta name="build" content="20261020-034730">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -315,7 +315,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:7, priceInset:0 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:6.5, priceInset:0 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -739,7 +739,7 @@ function buildSheet(){
   sheet.style.gridTemplateColumns = `repeat(${L.cols}, ${L.cw}mm)`; sheet.style.gridTemplateRows = `repeat(${L.rows}, ${L.ch}mm)`;
   sheet.style.setProperty('--cw', L.cw+'mm'); sheet.style.setProperty('--ch', L.ch+'mm'); sheet.style.setProperty('--u', L.u);
   // Base size is the printed point size of a dish name; everything else on the card scales with it.
-  const pt = Number(settings.fontPt)||7;
+  const pt = Number(settings.fontPt)||6.5;
   sheet.style.setProperty('--fs', (pt*0.3528)/(2.4*L.u)); sheet.style.setProperty('--pinset', (Number(settings.priceInset)||0)+'em');
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
   // Edge adjustment (settings.printMargin, mm). Positive: cut marks start that far inside the paper edge, so a
@@ -870,7 +870,7 @@ $('#settingsBtn').addEventListener('click', ()=>{
   b.append(el('h3',{},'Card'), el('div',{class:'row'}, sel('Card style','style',[['classic','Classic (current Pages layout)'],['ruled','Ruled, two columns']]), sel('Date shown as','dateFormat',[['dm','01/10'],['long','Thursday 1 October']])),
     field('Heading (after the date)','title',settings), field('Line under the heading','tagline',settings), field('Cafe name (ruled style only)','cafe',settings), field('Footer line','footer',settings),
     check('Print the group names (Food / Drinks)','sectionHeadings'),
-    el('h3',{},'Text'), slider('Base text size (pt, dish names as printed)','fontPt',5,14,0.5,7),
+    el('h3',{},'Text'), slider('Base text size (pt, dish names as printed)','fontPt',5,14,0.5,6.5),
     slider('Price column: distance in from the right edge (mm at A6)','priceInset',0,80,1,0));
   b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
