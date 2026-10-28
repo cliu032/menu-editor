@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261028-234022">
+<meta name="build" content="20261028-234432">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -516,7 +516,7 @@ function renderCard(target, m){
   const dateText = settings.dateFormat === 'dm' ? dm(m.date) : longDate(m.date);
   const head = el('div',{class:'c-head'});
   if (classic){
-    head.append(el('div',{class:'c-cafe'}, `${dateText}, ${settings.title || 'SPECIAL MENU'}`));
+    head.append(el('div',{class:'c-cafe'}, `${dateText} ${settings.title || 'SPECIAL MENU'}`));
     if (settings.tagline) head.append(el('div',{class:'c-tag'}, settings.tagline));
     target.append(head);
   } else {
