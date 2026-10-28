@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261028-233955">
+<meta name="build" content="20261028-234022">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -151,18 +151,18 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
-.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3em;padding-top:2em}
+.card.classic .c-body{columns:1;column-rule:0;display:flex;flex-direction:column;justify-content:flex-start;gap:var(--ggap,3em);padding-top:2em}
 .card.classic .c-sec{padding:0}
 .card.classic .c-sec-name{font-family:inherit;font-size:2.3em;letter-spacing:.1em;margin-bottom:.4em}
 .card.classic .c-sec-name::after{display:none}
-.card.classic .c-item{margin-top:.7em;column-gap:4em}
+.card.classic .c-item{margin-top:var(--igap,.7em);column-gap:4em}
 /* Prices stay right-aligned in a column; the column can be pulled in from the card's right edge. */
 .sheet .card .c-price{margin-right:var(--pinset,0)}
 .card.classic .c-item:first-child{margin-top:0}
 .card.classic .c-sec-name + .c-item{margin-top:0}
 .card.classic .c-name{font-size:2.4em;line-height:1.25}
 .card.classic .c-price{font-family:inherit;font-weight:700;font-size:2.4em;line-height:1.25}
-.card.classic .c-desc{font-style:normal;font-size:2.2em;line-height:1.25;color:#141412;padding-left:4.2em}
+.card.classic .c-desc{font-style:normal;font-size:2.2em;line-height:1.25;color:#141412;padding-left:4.2em;margin-top:var(--dgap,0)}
 .card.classic .c-foot{font-size:2.4em;border:0;text-transform:none;letter-spacing:0}
 .card.overflow{outline:1mm solid var(--bad)}
 
@@ -315,7 +315,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:6.5, priceInset:0 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:6.5, priceInset:0, groupGap:3, itemGap:0.7, descGap:0 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -741,6 +741,8 @@ function buildSheet(){
   // Base size is the printed point size of a dish name; everything else on the card scales with it.
   const pt = Number(settings.fontPt)||6.5;
   sheet.style.setProperty('--fs', (pt*0.3528)/(2.4*L.u)); sheet.style.setProperty('--pinset', (Number(settings.priceInset)||0)+'em');
+  const g = (k,d) => settings[k]===undefined||settings[k]==='' ? d : Number(settings[k]);
+  sheet.style.setProperty('--ggap', g('groupGap',3)+'em'); sheet.style.setProperty('--igap', g('itemGap',0.7)+'em'); sheet.style.setProperty('--dgap', g('descGap',0)+'em');
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
   // Edge adjustment (settings.printMargin, mm). Positive: cut marks start that far inside the paper edge, so a
   // printer's unprintable band has nothing to clip. Negative: overscan — the sheet is enlarged around its centre so
@@ -871,7 +873,11 @@ $('#settingsBtn').addEventListener('click', ()=>{
     field('Heading (after the date)','title',settings), field('Line under the heading','tagline',settings), field('Cafe name (ruled style only)','cafe',settings), field('Footer line','footer',settings),
     check('Print the group names (Food / Drinks)','sectionHeadings'),
     el('h3',{},'Text'), slider('Base text size (pt, dish names as printed)','fontPt',5,14,0.5,6.5),
-    slider('Price column: distance in from the right edge (mm at A6)','priceInset',0,80,1,0));
+    slider('Price column: distance in from the right edge (mm at A6)','priceInset',0,80,1,0),
+    el('h3',{},'Spacing'), slider('Gap between Food and Drinks','groupGap',0,15,0.5,3),
+    slider('Gap between items','itemGap',0,6,0.1,0.7),
+    slider('Gap between item name and description','descGap',-1,4,0.1,0),
+    el('p',{class:'hint'}, 'Spacing values are in millimetres on an A6 card at the default text size; they scale with the text.'));
   b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
