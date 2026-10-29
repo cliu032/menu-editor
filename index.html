@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Special Menu Board</title>
-<meta name="build" content="20261028-234520">
+<meta name="build" content="20261029-024946">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap">
 <style>
@@ -147,7 +147,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:500;text-wrap:balance}
 .card .c-desc{grid-column:1/-1;font-size:3.3em;line-height:1.3;font-style:italic;color:#3a3a36}
 .card .c-foot{text-align:center;font-size:2.6em;letter-spacing:.08em;text-transform:uppercase;color:#4b4b46;border-top:.08em solid #9b9b94;padding-top:.55em;margin-top:.4em}
 /* Classic: the cafe's existing Pages layout. Plain Helvetica, no rules, one column, prices flush right. */
-.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:12em 12em 11em;--cols:1}
+.card.classic{font-family:Helvetica,Arial,"Liberation Sans",sans-serif;padding:calc(var(--mtop,12) * var(--u,1) * 1mm) calc(var(--mside,12) * var(--u,1) * 1mm) calc(var(--mbot,11) * var(--u,1) * 1mm);--cols:1}
 .card.classic .c-head,.card.classic.portrait .c-head{display:block;border:0;padding:0;text-align:left;align-items:flex-start}
 .card.classic .c-cafe{font-family:inherit;font-weight:400;font-size:2.6em;letter-spacing:.02em;line-height:1.3}
 .card.classic .c-tag{font-style:normal;font-size:2.4em;color:#141412;white-space:normal;line-height:1.3}
@@ -316,7 +316,7 @@ const DEFAULT_RULES = {
   tags: ['a','l','m'], currency: '$', titleCase: false,
   replacements: [['w/','with']]
 };
-const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:6.5, priceInset:0, groupGap:3, itemGap:0.7, descGap:0 };
+const DEFAULT_SETTINGS = { cafe:'', title:'SPECIAL MENU', tagline:'Our menu vary by seasons and market availability', footer:'', style:'classic', dateFormat:'dm', sectionHeadings:false, cutMarks:true, guides:false, pageOrientation:'landscape', divisions:4, printMargin:10, fontPt:6.5, priceInset:0, groupGap:3, itemGap:0.7, descGap:0, marginTop:12, marginSide:12, marginBottom:11 };
 
 // Data version: wipes anything stored by the earlier prototype (different sections and example data).
 if (LS.get('specials.v', 0) !== 2){ try{ ['specials.rules','specials.settings','specials.history','specials.draft'].forEach(k=>localStorage.removeItem(k)); }catch(e){} LS.set('specials.v', 2); }
@@ -743,6 +743,7 @@ function buildSheet(){
   const pt = Number(settings.fontPt)||6.5;
   sheet.style.setProperty('--fs', (pt*0.3528)/(2.4*L.u)); sheet.style.setProperty('--pinset', (Number(settings.priceInset)||0)+'em');
   const g = (k,d) => settings[k]===undefined||settings[k]==='' ? d : Number(settings[k]);
+  sheet.style.setProperty('--mtop', g('marginTop',12)); sheet.style.setProperty('--mside', g('marginSide',12)); sheet.style.setProperty('--mbot', g('marginBottom',11));
   sheet.style.setProperty('--ggap', g('groupGap',3)+'em'); sheet.style.setProperty('--igap', g('itemGap',0.7)+'em'); sheet.style.setProperty('--dgap', g('descGap',0)+'em');
   document.documentElement.style.setProperty('--sheet-ratio', `${L.pw}/${L.ph}`);
   // Edge adjustment (settings.printMargin, mm). Positive: cut marks start that far inside the paper edge, so a
@@ -879,7 +880,9 @@ $('#settingsBtn').addEventListener('click', ()=>{
     el('h3',{},'Spacing'), slider('Gap between Food and Drinks','groupGap',0,15,0.5,3),
     slider('Gap between items','itemGap',0,6,0.1,0.7),
     slider('Gap between item name and description','descGap',-1,4,0.1,0),
-    el('p',{class:'hint'}, 'Spacing values are in millimetres on an A6 card at the default text size; they scale with the text.'));
+    el('p',{class:'hint'}, 'Spacing values are in millimetres on an A6 card at the default text size; they scale with the text.'),
+    el('h3',{},'Content margin'), slider('Top','marginTop',0,40,0.5,12), slider('Left and right','marginSide',0,40,0.5,12), slider('Bottom','marginBottom',0,40,0.5,11),
+    el('p',{class:'hint'}, 'Millimetres from the card edge to the text, on an A6 card; scales with card size, not with text size. Keep the outer margins clear of the printer\'s unprintable edge.'));
   b.append(el('h3',{},'Page layout'), el('div',{class:'row'}, sel('Page orientation','pageOrientation',[['landscape','A4 landscape'],['portrait','A4 portrait']]),
     sel('Cards per sheet','divisions',[[1,'1 (whole page)'],[2,'2 (halves)'],[3,'3 (thirds)'],[4,'4 (quarters)'],[6,'6'],[8,'8'],[9,'9'],[12,'12'],[16,'16']])),
     el('p',{class:'hint'}, 'Cards are always equal and split along the longer edge, so quarters are A6, halves are A5, and so on. Type scales with card size.'),
